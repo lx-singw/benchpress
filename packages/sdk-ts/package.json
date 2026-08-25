@@ -1,0 +1,19 @@
+{
+  "name": "@benchpress/sdk",
+  "version": "1.0.0",
+  "description": "Production TypeScript Client for Benchpress Model Routing & Trajectory Intelligence",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@benchpress/telemetry": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "typescript": "^5.7.3"
+  }
+}

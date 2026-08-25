@@ -1,99 +1,127 @@
-# Production Deployment Runbook, Canary Rollouts & Incident Triage SOPs
+# Deployment Runbook, Multi-Stage CI/CD & Terraform Provisioning
 
 > **Document ID:** `BP-IMP-003`  
-> **Status:** Approved / Production  
-> **Target Track:** DevOps, SRE & The Taskmaster • Google Cloud Hackathon (2026)
+> **Status:** Approved / Production Standard  
+> **Target Track:** Best Architectural Design & The Taskmaster • Google Cloud Hackathon (2026)
 
 ---
 
-## 1. Zero-Downtime Blue-Green & Canary Deployment Strategy
+## 1. Zero-Touch CI/CD Pipeline Architecture
 
-Benchpress employs automated **traffic splitting on Cloud Run** to execute zero-downtime canary deployments:
+Benchpress utilizes **GitHub Actions** and **Google Cloud Deploy** to build, test, and deploy both monorepo services (`apps/web` and `apps/sandbox-worker`) in parallel with zero manual intervention:
 
 ```mermaid
-flowchart LR
-    Ingress["Cloud Armor & HTTPS Load Balancer"] --> Splitter{"Cloud Run Traffic Director"}
-    
-    Splitter -->|90% Traffic| ActiveRev["Revision v1.4.0 (Stable Active)"]
-    Splitter -->|10% Canary| CanaryRev["Revision v1.5.0 (Canary Release)"]
+flowchart TD
+    subgraph GitHubActions["GitHub Actions Monorepo CI Pipeline"]
+        PushEvent["git push to main"]
+        LintTest["Turborepo: Lint + Vitest + Pytest"]
+        BuildWeb["Docker Build: apps/web (Standalone Alpine)"]
+        BuildWorker["Docker Build: apps/sandbox-worker (Python + gVisor)"]
+    end
 
-    CanaryRev --> TelemetryMonitor{"Automated SRE Health Check (15 min)"}
-    TelemetryMonitor -->|5xx Error Rate < 0.05% & P95 < 150ms| Promote["Promote v1.5.0 to 100% Traffic"]
-    TelemetryMonitor -->|Error Rate > 0.1%| Rollback["Instant Rollback (0% to Canary)"]
+    subgraph ArtifactRegistry["Google Artifact Registry (us-central1)"]
+        WebImage["us-central1-docker.pkg.dev/.../web:sha"]
+        WorkerImage["us-central1-docker.pkg.dev/.../worker:sha"]
+    end
+
+    subgraph CloudRunDeploy["Google Cloud Run Production Services"]
+        RunWeb["Cloud Run: benchpress-web (Port 3000)"]
+        RunWorker["Confidential Cloud Run: benchpress-sandbox-worker (Port 8080)"]
+    end
+
+    PushEvent --> LintTest
+    LintTest --> BuildWeb & BuildWorker
+    BuildWeb --> WebImage --> RunWeb
+    BuildWorker --> WorkerImage --> RunWorker
 ```
 
 ---
 
-## 2. Step-by-Step Production Release Runbook
+## 2. GitHub Actions Deployment Workflow
 
-### Step 1: Pre-Flight Verification
-```bash
-# Verify git status and ensure branch is clean
-git checkout main && git pull origin main
+```yaml
+# File: .github/workflows/deploy-production.yml
+name: Monorepo Production Deployment
 
-# Execute local test suite
-pytest tests/
-npm run test --workspaces
-```
+on:
+  push:
+    branches: [main]
 
-### Step 2: Build & Push Artifacts
-```bash
-# Authenticate with Google Artifact Registry
-gcloud auth configure-docker us-central1-docker.pkg.dev
+env:
+  PROJECT_ID: benchpress-prod
+  REGION: us-central1
+  GAR_REPO: benchpress-artifacts
 
-# Build and tag image with git SHA
-export REVISION_TAG=$(git rev-parse --short HEAD)
-docker build -t us-central1-docker.pkg.dev/benchpress-prod-2026/benchpress-artifacts/api-gateway:$REVISION_TAG -f docker/Dockerfile.api .
-docker push us-central1-docker.pkg.dev/benchpress-prod-2026/benchpress-artifacts/api-gateway:$REVISION_TAG
-```
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
-### Step 3: Deploy Canary Revision (10% Traffic)
-```bash
-gcloud run deploy benchpress-api-gateway \
-  --image=us-central1-docker.pkg.dev/benchpress-prod-2026/benchpress-artifacts/api-gateway:$REVISION_TAG \
-  --region=us-central1 \
-  --no-traffic \
-  --tag=canary
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-# Split 10% traffic to canary tag
-gcloud run services update-traffic benchpress-api-gateway \
-  --region=us-central1 \
-  --to-tags=canary=10
-```
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "github-deployer@benchpress-prod.iam.gserviceaccount.com"
 
-### Step 4: Promote to 100% Production Traffic
-```bash
-# After 15 minutes of green telemetry:
-gcloud run services update-traffic benchpress-api-gateway \
-  --region=us-central1 \
-  --to-latest
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Google Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build & Push Next.js 15 App (`apps/web`)
+        run: |
+          docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/web:${{ github.sha }} \
+                       -t us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/web:latest \
+                       -f apps/web/Dockerfile .
+          docker push us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/web:${{ github.sha }}
+          docker push us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/web:latest
+
+      - name: Build & Push Sandbox Worker (`apps/sandbox-worker`)
+        run: |
+          docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/sandbox-worker:${{ github.sha }} \
+                       -t us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/sandbox-worker:latest \
+                       -f apps/sandbox-worker/Dockerfile .
+          docker push us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/sandbox-worker:${{ github.sha }}
+          docker push us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/sandbox-worker:latest
+
+      - name: Deploy apps/web to Cloud Run
+        run: |
+          gcloud run deploy benchpress-web \
+            --image=us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/web:${{ github.sha }} \
+            --region=$REGION \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=3000
+
+      - name: Deploy apps/sandbox-worker to Confidential Cloud Run
+        run: |
+          gcloud run deploy benchpress-sandbox-worker \
+            --image=us-central1-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/sandbox-worker:${{ github.sha }} \
+            --region=$REGION \
+            --execution-environment=gen2 \
+            --no-allow-unauthenticated \
+            --port=8080
 ```
 
 ---
 
-## 3. Emergency Incident Triage SOPs
+## 3. Zero-Downtime Blue/Green Traffic Splitting & Rollback SOP
 
-### SOP-01: Instant Production Rollback
-If an active deployment triggers an SLO breach:
 ```bash
-# Rollback immediately to previous stable revision
-gcloud run services update-traffic benchpress-api-gateway \
-  --region=us-central1 \
-  --to-revisions=benchpress-api-gateway-00042-xyz=100
-```
+# Split traffic 90% to current stable and 10% to new canary revision
+gcloud run services update-traffic benchpress-web \
+  --to-revisions=benchpress-web-v2=10,benchpress-web-v1=90 \
+  --region=us-central1
 
-### SOP-02: Cloud Tasks Queue Drain & Throttle
-If foundation model APIs experience widespread 429 outages:
-```bash
-# Pause dispatch queue immediately
-gcloud tasks queues pause trajectory-dispatch-queue --location=us-central1
-
-# Lower dispatch rate to 50 requests/sec
-gcloud tasks queues update trajectory-dispatch-queue \
-  --location=us-central1 \
-  --max-dispatches-per-second=50 \
-  --max-concurrent-dispatches=20
-
-# Resume queue
-gcloud tasks queues resume trajectory-dispatch-queue --location=us-central1
+# Instant Emergency Rollback: Revert 100% traffic to previous stable revision
+gcloud run services update-traffic benchpress-web \
+  --to-revisions=benchpress-web-v1=100 \
+  --region=us-central1
 ```

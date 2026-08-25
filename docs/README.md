@@ -21,45 +21,42 @@ As software engineering and enterprise workflows transition from single-prompt L
 2. **Context Degradation is real:** Agent accuracy degrades non-linearly as multi-turn scratchpads and tool outputs fill the context window.
 3. **Monolithic routing is wasteful:** Routing all queries to massive frontier models burns millions in unnecessary inference costs.
 
-Benchpress solves this crisis by introducing:
+Benchpress solves this crisis with a **Streamlined 2-Service Monorepo Architecture**:
+- **Service 1 (`apps/web`):** Unified Next.js 15 App Router (React 19, TypeScript, Tailwind CSS, Turbopack) hosting the Obsidian Dark Glassmorphism UI, Tri-Modal WebRTC Audio/Vision clients, and Edge REST API Route Handlers (`/api/v1/*`) that dispatch directly to Cloud Tasks.
+- **Service 2 (`apps/sandbox-worker`):** Python 3.12 Cloud Run Gen2 execution engine running the 13-State Enhanced FSM inside gVisor `runsc` sandboxes with the Supervisor AST Healer, Git Saga Rollbacks, and BigQuery Storage Write API.
 - **The 5 Autonomous Breakthrough Pillars:** Closed-Loop Self-Tuning Router, Supervisor AST Tool-Healer, Predictive Budget Sentinel, CI/CD Crash-to-PR Auto-Remediation Daemon, and Real-Time Economic Arbitrage Engine.
 - **The 5 Architectural Breakthroughs:** Immutable Event-Sourced Trajectories, 3-Tier Hierarchical Memory Compactor, JIT Ephemeral Credential Broker, Git-Tree Compensating Sagas, and Automated Chaos Resilience Mesh.
-- **Cost Per Resolution ($\text{CPR}$):** The gold-standard economic efficiency metric measuring the exact dollar cost to produce a verified unit-tested fix.
-- **Dynamic Pareto Routing:** Real-time routing algorithms recommending optimal model choreography (e.g., Gemini 2.5 Pro Planner + Gemini 3.5 Flash Coder) saving 60–87% in token costs.
-- **Tri-Modal Diagnostics:** Live WebRTC duplex voice interaction (<200ms), drag-and-drop terminal/IDE vision ingestion, and an interactive tactile Pareto canvas.
-- **Enterprise-Grade GCP Architecture:** Massively scalable asynchronous agent fleets running on Confidential Cloud Run Gen2 (AMD SEV-SNP), Cloud Tasks queues, Memorystore Redis event buses, and BigQuery Storage Write API telemetry.
 
 ---
 
-## 🏛️ Master Architecture Topology
+## 🏛️ Master Monorepo & Cloud Architecture Topology
 
 ```mermaid
 flowchart TB
     subgraph ClientSurfaces["Multimodal & Developer Client Surfaces"]
         direction TB
-        WebHub["Surface 1: Public Intelligence Web Hub<br/>(Next.js 15, Tailwind, Canvas)"]
-        LiveVoice["Surface 1b: Tri-Modal Voice/Vision Drawer<br/>(WebRTC Audio + Vision OCR)"]
-        AgentFleet["Surface 2: Live Trajectory Replayer<br/>(Split Sandbox Terminal + Token Waterfall)"]
-        DevAPI["Surface 3: Developer & Router API<br/>(Cursor / Windsurf / Gateway SDKs)"]
+        WebHub["apps/web: Public Intelligence Hub<br/>(Next.js 15, Tailwind, Canvas)"]
+        LiveVoice["apps/web: Tri-Modal Voice/Vision Drawer<br/>(WebRTC Audio + Vision OCR)"]
+        AgentFleet["apps/web: Live Trajectory Replayer<br/>(Split Sandbox Terminal + Token Waterfall)"]
+        DevAPI["apps/web: Edge API Route Handlers<br/>(/api/v1/benchmarks, /api/v1/routing)"]
     end
 
     subgraph IngressSecurity["Security & Ingress Layer (GCP)"]
         CloudArmor["Google Cloud Armor<br/>(WAF, DDoS, Rate Limiting)"]
         LoadBalancer["Global External HTTPS Load Balancer"]
-        CloudRunGateway["Cloud Run API Gateway<br/>(FastAPI / Node.js Proxy)"]
         CI_CD_Ingress["Cloud Run CI/CD Ingress Controller<br/>(GitHub check_run Webhooks)"]
         JIT_Broker["JIT Ephemeral Credential Broker<br/>(GCP STS 60s Micro-Tokens)"]
     end
 
     subgraph MultimodalPipeline["Multimodal Live Streaming Pipeline"]
-        WebRTCProxy["Cloud Run WebRTC/WebSocket Sidecar<br/>(DOM Sync & Trace Interceptor)"]
+        WebRTCProxy["apps/web: WebRTC/WebSocket Sidecar<br/>(DOM Sync & Trace Interceptor)"]
         VertexLive["Vertex AI Gemini Multimodal Live API<br/>(Sub-200ms Duplex Audio & Vision)"]
     end
 
-    subgraph AsyncExecution["Async Agent Fleet Execution Engine (The Taskmaster)"]
+    subgraph AsyncExecution["apps/sandbox-worker Fleet (The Taskmaster)"]
         CloudTasks["Cloud Tasks Push Queues<br/>(Deterministic Concurrency & Rate Throttling)"]
         CanaryScheduler["Cloud Tasks Canary Scheduler<br/>(6-Hour Closed-Loop Drift Swarms)"]
-        SandboxWorkers["Confidential Cloud Run Sandbox Fleet<br/>(AMD SEV-SNP, gVisor runsc, Git-Tree Sagas)"]
+        SandboxWorkers["apps/sandbox-worker: Confidential Cloud Run Fleet<br/>(AMD SEV-SNP, gVisor runsc, Git-Tree Sagas)"]
         SupervisorHealer["Supervisor AST Tool-Healer<br/>(Gemini 2.5 Pro Dynamic Wrapper Synthesizer)"]
         MemoryCompactor["3-Tier Hierarchical Memory Bus<br/>(L1 AST Scratchpad, L2 Compactor, L3 Vector)"]
         VertexReasoning["Vertex AI Foundation Models<br/>(Gemini 2.5 Pro, 3.5 Flash, 3.7 Flash)"]
@@ -79,17 +76,16 @@ flowchart TB
     AgentFleet --> LoadBalancer
     DevAPI --> LoadBalancer
     CI_CD_Ingress --> CloudTasks
-    LoadBalancer --> CloudArmor --> CloudRunGateway
+    LoadBalancer --> CloudArmor --> DevAPI
 
     %% Ingress to Services
-    CloudRunGateway --> Firestore
-    CloudRunGateway --> CloudTasks
-    CloudRunGateway --> DevAPI
+    DevAPI --> Firestore
+    DevAPI --> CloudTasks
 
     %% Multimodal Live flow
     LiveVoice -.->|Duplex WebRTC PCM Audio| VertexLive
     WebRTCProxy <-->|WebSocket State Sync| WebHub
-    WebRTCProxy -->|DOM Actions & Queries| CloudRunGateway
+    WebRTCProxy -->|DOM Actions & Queries| DevAPI
 
     %% Task Execution Flow
     CloudTasks -->|Push HTTP POST| SandboxWorkers
@@ -154,10 +150,10 @@ The complete documentation suite comprises **52 production-grade technical speci
 | | [**`02-sprint-backlog-and-epics.md`**](./planning/02-sprint-backlog-and-epics.md) | 5 Epics, User Stories, Gherkin Criteria & Story Points | Project Management |
 | | [**`03-risk-matrix-and-mitigation.md`**](./planning/03-risk-matrix-and-mitigation.md) | 4x4 Enterprise Risk Matrix & SRE Response Playbooks | Risk Governance |
 | | [**`04-finops-and-token-budget-plan.md`**](./planning/04-finops-and-token-budget-plan.md) | Monthly GCP Operating Budget & Unit Economics Margin Model | FinOps & Budget |
-| **8. Implementation** | [**`01-technical-implementation-guide.md`**](./implementation/01-technical-implementation-guide.md) | End-to-End Build Guide (Next.js 15, FastAPI, WebRTC) | ⚙️ **The Taskmaster** |
-| | [**`02-verification-and-testing-plan.md`**](./implementation/02-verification-and-testing-plan.md) | Multi-Tier Test Matrix (Vitest, Playwright, Pytest, k6) | ⚙️ **The Taskmaster** |
-| | [**`03-deployment-runbook-and-ci-cd.md`**](./implementation/03-deployment-runbook-and-ci-cd.md) | Blue-Green Canary Cloud Run Releases & Rollback SOPs | ⚙️ **The Taskmaster** |
-| | [**`04-local-development-and-mocking.md`**](./implementation/04-local-development-and-mocking.md) | Docker Compose Local Setup & Mock Vertex AI Servers | ⚙️ **The Taskmaster** |
+| **8. Implementation** | [**`01-technical-implementation-guide.md`**](./implementation/01-technical-implementation-guide.md) | 2-Service Monorepo Blueprint (`apps/web` + `apps/sandbox-worker`) | ⚙️ **The Taskmaster** |
+| | [**`02-verification-and-testing-plan.md`**](./implementation/02-verification-and-testing-plan.md) | 4-Tier Test Matrix (Vitest, Playwright, Pytest, k6 sub-50ms SLA) | ⚙️ **The Taskmaster** |
+| | [**`03-deployment-runbook-and-ci-cd.md`**](./implementation/03-deployment-runbook-and-ci-cd.md) | Multi-Stage Docker Builds & GitHub Actions Cloud Run Deploy | ⚙️ **The Taskmaster** |
+| | [**`04-local-development-and-mocking.md`**](./implementation/04-local-development-and-mocking.md) | Turborepo Dev Workflow & Offline Vertex AI Mock Stubs | ⚙️ **The Taskmaster** |
 | **9. Methodology** | [**`01-benchmark-methodology-metrics.md`**](./methodology/01-benchmark-methodology-metrics.md) | Mathematical Formulations (CPR, TBR, Pareto Score, Decay) | Scientific Rigor |
 | | [**`02-task-suites-and-eval-sets.md`**](./methodology/02-task-suites-and-eval-sets.md) | SWE-Bench Verified, Financial Recon & Multi-Doc Ops Suites | Scientific Rigor |
 | **10. API & SDKs** | [**`01-api-specification.md`**](./api/01-api-specification.md) | Complete OpenAPI 3.0 YAML Spec & Request/Response JSONs | Developer Ecosystem |
@@ -178,7 +174,8 @@ The complete documentation suite comprises **52 production-grade technical speci
 - **The 5 Autonomous Pillars:** Explore the [Devpost Narrative](./hackathon/01-devpost-narrative.md) and [Video Script](./hackathon/02-demo-video-script.md).
 
 ### 2. 🏛️ Best Architectural Design Highlights ($5,000 Target)
-- **13-State Deterministic FSM & Healer:** Review [Agentic Runtime & FSM](./architecture/02-agentic-runtime-and-fsm.md) featuring supervisor dynamic tool wrapper injection and Markov chain token velocity forecasting.
+- **2-Service Monorepo Blueprint:** Review [Technical Implementation Guide](./implementation/01-technical-implementation-guide.md) featuring Next.js 15 Edge App Router + Python 3.12 gVisor Sandbox Worker.
+- **13-State Deterministic FSM & Healer:** Review [Agentic Runtime & FSM](./architecture/02-agentic-runtime-and-fsm.md).
 - **Architectural Decision Records (Complete 10 ADR Suite):**
   - [ADR-001 (Cloud Tasks vs. Pub/Sub)](./architecture/adrs/ADR-001-cloud-tasks-vs-pubsub.md)
   - [ADR-002 (BigQuery Storage Write API)](./architecture/adrs/ADR-002-bigquery-telemetry-storage.md)

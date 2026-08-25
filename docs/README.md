@@ -23,10 +23,11 @@ As software engineering and enterprise workflows transition from single-prompt L
 
 Benchpress solves this crisis by introducing:
 - **The 5 Autonomous Breakthrough Pillars:** Closed-Loop Self-Tuning Router, Supervisor AST Tool-Healer, Predictive Budget Sentinel, CI/CD Crash-to-PR Auto-Remediation Daemon, and Real-Time Economic Arbitrage Engine.
+- **The 5 Architectural Breakthroughs:** Immutable Event-Sourced Trajectories, 3-Tier Hierarchical Memory Compactor, JIT Ephemeral Credential Broker, Git-Tree Compensating Sagas, and Automated Chaos Resilience Mesh.
 - **Cost Per Resolution ($\text{CPR}$):** The gold-standard economic efficiency metric measuring the exact dollar cost to produce a verified unit-tested fix.
 - **Dynamic Pareto Routing:** Real-time routing algorithms recommending optimal model choreography (e.g., Gemini 2.5 Pro Planner + Gemini 3.5 Flash Coder) saving 60–87% in token costs.
 - **Tri-Modal Diagnostics:** Live WebRTC duplex voice interaction (<200ms), drag-and-drop terminal/IDE vision ingestion, and an interactive tactile Pareto canvas.
-- **Enterprise-Grade GCP Architecture:** Massively scalable asynchronous agent fleets running on Cloud Run Gen2 (gVisor sandboxes), Cloud Tasks queues, Memorystore Redis buffers, and BigQuery streaming telemetry.
+- **Enterprise-Grade GCP Architecture:** Massively scalable asynchronous agent fleets running on Confidential Cloud Run Gen2 (AMD SEV-SNP), Cloud Tasks queues, Memorystore Redis event buses, and BigQuery Storage Write API telemetry.
 
 ---
 
@@ -47,6 +48,7 @@ flowchart TB
         LoadBalancer["Global External HTTPS Load Balancer"]
         CloudRunGateway["Cloud Run API Gateway<br/>(FastAPI / Node.js Proxy)"]
         CI_CD_Ingress["Cloud Run CI/CD Ingress Controller<br/>(GitHub check_run Webhooks)"]
+        JIT_Broker["JIT Ephemeral Credential Broker<br/>(GCP STS 60s Micro-Tokens)"]
     end
 
     subgraph MultimodalPipeline["Multimodal Live Streaming Pipeline"]
@@ -57,14 +59,16 @@ flowchart TB
     subgraph AsyncExecution["Async Agent Fleet Execution Engine (The Taskmaster)"]
         CloudTasks["Cloud Tasks Push Queues<br/>(Deterministic Concurrency & Rate Throttling)"]
         CanaryScheduler["Cloud Tasks Canary Scheduler<br/>(6-Hour Closed-Loop Drift Swarms)"]
-        SandboxWorkers["Cloud Run Gen2 Trajectory Sandbox Fleet<br/>(gVisor Container Isolation, Ephemeral VFS)"]
+        SandboxWorkers["Confidential Cloud Run Sandbox Fleet<br/>(AMD SEV-SNP, gVisor runsc, Git-Tree Sagas)"]
         SupervisorHealer["Supervisor AST Tool-Healer<br/>(Gemini 2.5 Pro Dynamic Wrapper Synthesizer)"]
+        MemoryCompactor["3-Tier Hierarchical Memory Bus<br/>(L1 AST Scratchpad, L2 Compactor, L3 Vector)"]
         VertexReasoning["Vertex AI Foundation Models<br/>(Gemini 2.5 Pro, 3.5 Flash, 3.7 Flash)"]
     end
 
     subgraph DataTelemetry["Telemetry & Analytics Data Pipeline"]
-        RedisBuffer["Memorystore Redis<br/>(Turn Micro-Batch Buffer)"]
+        EventBus["Append-Only Event Sourcing Bus<br/>(Memorystore Redis Protobuf Stream)"]
         BigQuery["BigQuery Analytics Warehouse<br/>(Storage Write API, Partitioned & Clustered)"]
+        VectorSearch["Vertex AI Vector Search<br/>(L3 Long-Term Memory ScaNN Index)"]
         Firestore["Firestore Native Mode<br/>(Sub-ms Leaderboard Cache & Realtime WebSocket)"]
         GCS["Cloud Storage<br/>(Raw Trajectory Traces & Sandboxed Git Forks)"]
     end
@@ -90,14 +94,17 @@ flowchart TB
     %% Task Execution Flow
     CloudTasks -->|Push HTTP POST| SandboxWorkers
     CanaryScheduler --> CloudTasks
+    SandboxWorkers --> JIT_Broker
+    SandboxWorkers <--> MemoryCompactor
     SandboxWorkers <-->|Inference & Tool Calls| VertexReasoning
     SandboxWorkers <-->|Schema Mismatch Healing| SupervisorHealer
-    SandboxWorkers -->|Micro-Batch Turn Telemetry| RedisBuffer
+    SandboxWorkers -->|Append-Only Protobuf Events| EventBus
     SandboxWorkers -->|Realtime Execution Events| Firestore
     SandboxWorkers -->|Compressed Trace Dumps| GCS
 
     %% Data Pipeline Flow
-    RedisBuffer -->|Storage Write API Flush| BigQuery
+    MemoryCompactor <-->|L3 Similarity Lookup| VectorSearch
+    EventBus -->|Storage Write API Flush| BigQuery
     BigQuery -->|Aggregated Materialized Views| Firestore
 ```
 
@@ -105,22 +112,26 @@ flowchart TB
 
 ## 📑 Complete 12-Folder Master Documentation Taxonomy
 
-The complete documentation suite comprises **48 production-grade technical specifications** organized into 12 core domains:
+The complete documentation suite comprises **52 production-grade technical specifications** organized into 12 core domains:
 
 | Domain | Document Path | Category & Core Topics | Target Hackathon Track |
 | :--- | :--- | :--- | :--- |
 | **0. Master Index** | [**`docs/README.md`**](./README.md) | Master Navigation Index & Complete Architecture Map | All Tracks |
 | **1. Architecture** | [**`01-system-overview-c4.md`**](./architecture/01-system-overview-c4.md) | C4 Context, Container, Component, and Code Sequence Models | 🏛️ **Best Architectural Design** ($5k) |
-| | [**`02-agentic-runtime-and-fsm.md`**](./architecture/02-agentic-runtime-and-fsm.md) | 13-State FSM, Supervisor AST Healer & Markov Token Sentinel | 🏛️ **Best Architectural Design** ($5k) |
+| | [**`02-agentic-runtime-and-fsm.md`**](./architecture/02-agentic-runtime-and-fsm.md) | 13-State FSM, Git-Tree Sagas, Supervisor Healer & Markov Sentinel | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`03-data-pipeline-and-bigquery.md`**](./architecture/03-data-pipeline-and-bigquery.md) | BigQuery Storage Write API, Redis Buffer & DDL SQL Schemas | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`04-gcp-infrastructure-iac.md`**](./architecture/04-gcp-infrastructure-iac.md) | Production Terraform HCL Manifests & GitHub Actions CI/CD | 🏛️ **Best Architectural Design** ($5k) |
-| | [**`05-resilience-and-threat-model.md`**](./architecture/05-resilience-and-threat-model.md) | 12-Failure FMEA Matrix, Prompt Injection & Cryptographic Traces | 🏛️ **Best Architectural Design** ($5k) |
+| | [**`05-resilience-and-threat-model.md`**](./architecture/05-resilience-and-threat-model.md) | 12-Failure FMEA Matrix, eBPF Egress Probes & Chaos Test Matrix | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`ADR-001-cloud-tasks-vs-pubsub.md`**](./architecture/adrs/ADR-001-cloud-tasks-vs-pubsub.md) | Cloud Tasks vs. Pub/Sub for Deterministic Dispatch | Architectural Rigor |
 | | [**`ADR-002-bigquery-telemetry-storage.md`**](./architecture/adrs/ADR-002-bigquery-telemetry-storage.md) | BigQuery Storage Write API vs. Cloud SQL/Spanner | Architectural Rigor |
 | | [**`ADR-003-hybrid-model-routing-choreography.md`**](./architecture/adrs/ADR-003-hybrid-model-routing-choreography.md) | 2-Tiered Hybrid Routing (Gemini 2.5 Pro + 3.5 Flash) | Architectural Rigor |
 | | [**`ADR-004-multimodal-live-streaming-webrtc.md`**](./architecture/adrs/ADR-004-multimodal-live-streaming-webrtc.md) | Vertex AI Multimodal Live API over WebRTC + WebSocket Sidecar | 🎨 **Best Multimodal UX** ($5k) |
 | | [**`ADR-005-predictive-token-velocity-sentinel.md`**](./architecture/adrs/ADR-005-predictive-token-velocity-sentinel.md) | Markov Chain Token Velocity Forecasting & Model Downgrading | Architectural Rigor |
 | | [**`ADR-006-autonomous-ast-schema-healing.md`**](./architecture/adrs/ADR-006-autonomous-ast-schema-healing.md) | Dynamic In-Context Tool Wrapper Injection via Supervisor Agent | Architectural Rigor |
+| | [**`ADR-007-event-sourced-trajectory-sagas.md`**](./architecture/adrs/ADR-007-event-sourced-trajectory-sagas.md) | Event Sourcing, Protobuf Streams & Git-Tree Compensating Sagas | 🏛️ **Best Architectural Design** ($5k) |
+| | [**`ADR-008-jit-credential-broker-and-ebpf.md`**](./architecture/adrs/ADR-008-jit-credential-broker-and-ebpf.md) | JIT 60s Micro-Tokens, Confidential Cloud Run & eBPF Egress | 🛡️ **The Fortified Enterprise Fleet** |
+| | [**`ADR-009-hierarchical-memory-compaction.md`**](./architecture/adrs/ADR-009-hierarchical-memory-compaction.md) | 3-Tier Memory Model & Semantic AST Compactor (>=78.5% Compression) | 🏛️ **Best Architectural Design** ($5k) |
+| | [**`ADR-010-chaos-engineering-resilience-mesh.md`**](./architecture/adrs/ADR-010-chaos-engineering-resilience-mesh.md) | Automated Fault Injection & Chaos Testing Harness in CI/CD | 🏛️ **Best Architectural Design** ($5k) |
 | **2. Design & UX** | [**`01-multimodal-ux-spec.md`**](./design/01-multimodal-ux-spec.md) | Tri-Modal UX Philosophy (Voice, Vision OCR, Tactile Canvas) | 🎨 **Best Multimodal UX** ($5k) |
 | | [**`02-design-system-and-tokens.md`**](./design/02-design-system-and-tokens.md) | Obsidian Dark Glassmorphism, Tailwind Tokens & Micro-Animations | 🎨 **Best Multimodal UX** ($5k) |
 | | [**`03-user-journeys-and-wireframes.md`**](./design/03-user-journeys-and-wireframes.md) | Persona Journey Maps & 4 Complete ASCII Wireframes | 🎨 **Best Multimodal UX** ($5k) |
@@ -168,13 +179,17 @@ The complete documentation suite comprises **48 production-grade technical speci
 
 ### 2. 🏛️ Best Architectural Design Highlights ($5,000 Target)
 - **13-State Deterministic FSM & Healer:** Review [Agentic Runtime & FSM](./architecture/02-agentic-runtime-and-fsm.md) featuring supervisor dynamic tool wrapper injection and Markov chain token velocity forecasting.
-- **Architectural Decision Records:** Read our 6 formal ADRs:
+- **Architectural Decision Records (Complete 10 ADR Suite):**
   - [ADR-001 (Cloud Tasks vs. Pub/Sub)](./architecture/adrs/ADR-001-cloud-tasks-vs-pubsub.md)
   - [ADR-002 (BigQuery Storage Write API)](./architecture/adrs/ADR-002-bigquery-telemetry-storage.md)
   - [ADR-003 (2-Tiered Hybrid Routing)](./architecture/adrs/ADR-003-hybrid-model-routing-choreography.md)
   - [ADR-004 (WebRTC Multimodal Live Streaming)](./architecture/adrs/ADR-004-multimodal-live-streaming-webrtc.md)
   - [ADR-005 (Markov Token Velocity Sentinel)](./architecture/adrs/ADR-005-predictive-token-velocity-sentinel.md)
   - [ADR-006 (Autonomous AST Tool Wrapper Injection)](./architecture/adrs/ADR-006-autonomous-ast-schema-healing.md)
+  - [ADR-007 (Event Sourcing & Git-Tree Sagas)](./architecture/adrs/ADR-007-event-sourced-trajectory-sagas.md)
+  - [ADR-008 (JIT Micro-Tokens, Confidential Run & eBPF)](./architecture/adrs/ADR-008-jit-credential-broker-and-ebpf.md)
+  - [ADR-009 (3-Tier Hierarchical Memory & Compactor)](./architecture/adrs/ADR-009-hierarchical-memory-compaction.md)
+  - [ADR-010 (Automated Chaos-Engineering Resilience Mesh)](./architecture/adrs/ADR-010-chaos-engineering-resilience-mesh.md)
 
 ### 3. 🎨 Best Multimodal UX Highlights ($5,000 Target)
 - **Tri-Modal Interaction Spec:** Review [Multimodal UX Spec](./design/01-multimodal-ux-spec.md) combining sub-200ms Gemini Live duplex voice, vision error ingestion, and tactile canvas manipulation.

@@ -1,61 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { ParetoRouter, RoutingTaskRequest } from "@/lib/pareto-router";
 
-const RequestSchema = z.object({
-  task_type: z.string().min(1),
-  current_model: z.string().min(1),
-  budget_limit_usd: z.number().positive().optional().default(2.0),
-  latency_target_ms: z.number().positive().optional(),
-});
+export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+/**
+ * POST /api/v1/routing-recommendation
+ * Returns real-time Pareto-optimal 2-tier model choreography recommendation with cost-saving analytics.
+ */
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    const parsed = RequestSchema.safeParse(body);
+    const body: RoutingTaskRequest = await req.json().catch(() => ({ task_type: "code_bug_fix" }));
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid request payload", details: parsed.error.format() },
-        { status: 400 }
-      );
-    }
-
-    const { task_type, current_model, budget_limit_usd } = parsed.data;
-
-    // Evaluate optimal routing choreography based on Pareto frontier models
-    let recommendedStrategy = "HYBRID_CHOREOGRAPHY";
-    let plannerModel = "gemini-2.5-pro";
-    let coderModel = "gemini-2.5-flash";
-    let projectedCprUsd = 0.28;
-    let projectedSavingsPct = 68.2;
-    let confidenceScore = 0.94;
-    let rationale = `Routing '${task_type}' from ${current_model} to Gemini 2.5 Pro (Planning) + Gemini 2.5 Flash (AST Execution) reduces expected cost by 68.2% with zero pass-rate degradation.`;
-
-    if (budget_limit_usd && budget_limit_usd < 0.20) {
-      recommendedStrategy = "PURE_FLASH_FAST_PATH";
-      plannerModel = "gemini-2.5-flash";
-      coderModel = "gemini-2.5-flash";
-      projectedCprUsd = 0.12;
-      projectedSavingsPct = 85.0;
-      confidenceScore = 0.88;
-      rationale = `Tight budget constraint ($${budget_limit_usd.toFixed(2)}) routed to pure Gemini 2.5 Flash execution pipeline.`;
-    }
+    const decision = ParetoRouter.calculateRoute(body);
 
     return NextResponse.json({
-      status: "success",
-      recommendedStrategy,
-      plannerModel,
-      coderModel,
-      rationale,
-      projectedCprUsd,
-      projectedSavingsPct,
-      confidenceScore,
-      evaluatedAt: new Date().toISOString(),
+      success: true,
+      data: decision,
+      evaluated_at: new Date().toISOString(),
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: "Internal routing engine error", message: error.message },
+      { success: false, error: error.message || "Failed to calculate routing recommendation" },
       { status: 500 }
     );
   }
+}
+
+export async function GET(req: NextRequest) {
+  // Support GET with query parameter defaults
+  const searchParams = req.nextUrl.searchParams;
+  const taskType = (searchParams.get("task_type") as any) || "code_bug_fix";
+  const costWeight = searchParams.get("cost_weight") ? parseFloat(searchParams.get("cost_weight")!) : 0.5;
+  const maxLatency = searchParams.get("max_latency") ? parseFloat(searchParams.get("max_latency")!) : 30;
+
+  const decision = ParetoRouter.calculateRoute({
+    task_type: taskType,
+    cost_weight: costWeight,
+    max_latency_sec: maxLatency,
+  });
+
+  return NextResponse.json({
+    success: true,
+    data: decision,
+    evaluated_at: new Date().toISOString(),
+  });
 }

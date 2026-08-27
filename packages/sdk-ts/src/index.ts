@@ -1,6 +1,6 @@
 /**
  * @benchpress/sdk
- * Production TypeScript SDK Client for Benchpress Model Routing & Trajectory Intelligence.
+ * Production TypeScript SDK Client for Benchpress Model Routing, Trajectory Intelligence & IDE Integrations.
  */
 
 import { FsmState, TrajectoryStatus, TaskSuite } from "@benchpress/telemetry";
@@ -8,21 +8,30 @@ import { FsmState, TrajectoryStatus, TaskSuite } from "@benchpress/telemetry";
 export { FsmState, TrajectoryStatus, TaskSuite };
 
 export interface RoutingRecommendation {
-  recommendedStrategy: string;
-  plannerModel: string;
-  coderModel: string;
+  recommended_strategy: "HYBRID_CHOREOGRAPHY" | "FLASH_ONLY" | "PRO_ONLY";
+  planner_model: string;
+  coder_model: string;
+  estimated_cpr_usd: number;
+  baseline_frontier_cost_usd: number;
+  projected_savings_percent: number;
+  expected_pass_at_1: number;
+  expected_latency_sec: number;
   rationale: string;
-  projectedCprUsd: number;
-  projectedSavingsPct: number;
-  confidenceScore: number;
-  evaluatedAt: string;
+  breakdown: {
+    planner_turns_est: number;
+    coder_turns_est: number;
+    planner_cost_est: number;
+    coder_cost_est: number;
+  };
 }
 
 export interface RoutingRecommendationRequest {
-  task_type: string;
-  current_model: string;
-  budget_limit_usd?: number;
-  latency_target_ms?: number;
+  task_type: "code_bug_fix" | "feature_generation" | "refactor" | "test_assertion" | "general_agent" | string;
+  language?: string;
+  repo_size_lines?: number;
+  cyclomatic_complexity?: number;
+  cost_weight?: number; // 0.0 to 1.0
+  max_latency_sec?: number;
 }
 
 export interface TrajectorySubmissionRequest {
@@ -58,17 +67,28 @@ export interface BenchmarkLeaderboardEntry {
 export interface BenchpressClientOptions {
   apiKey?: string;
   baseUrl?: string;
+  wsUrl?: string;
   timeoutMs?: number;
 }
 
 export class BenchpressClient {
   private apiKey: string;
   private baseUrl: string;
+  private wsUrl: string;
   private timeoutMs: number;
 
   constructor(options: BenchpressClientOptions = {}) {
-    this.apiKey = options.apiKey || process.env.BENCHPRESS_API_KEY || "";
-    this.baseUrl = (options.baseUrl || process.env.BENCHPRESS_BASE_URL || "http://localhost:3000/api/v1").replace(/\/$/, "");
+    this.apiKey = options.apiKey || (typeof process !== "undefined" ? process.env?.BENCHPRESS_API_KEY : "") || "";
+    this.baseUrl = (
+      options.baseUrl ||
+      (typeof process !== "undefined" ? process.env?.BENCHPRESS_BASE_URL : "") ||
+      "http://localhost:3000/api/v1"
+    ).replace(/\/$/, "");
+    this.wsUrl = (
+      options.wsUrl ||
+      (typeof process !== "undefined" ? process.env?.BENCHPRESS_WS_URL : "") ||
+      "ws://localhost:8080"
+    ).replace(/\/$/, "");
     this.timeoutMs = options.timeoutMs || 30000;
   }
 
@@ -99,7 +119,8 @@ export class BenchpressClient {
         throw new Error(`Benchpress API error (${response.status} ${response.statusText}): ${errorText}`);
       }
 
-      return (await response.json()) as T;
+      const json = await response.json();
+      return (json.data ?? json) as T;
     } finally {
       clearTimeout(timer);
     }
@@ -133,5 +154,31 @@ export class BenchpressClient {
     return this.request<{ benchmarks: BenchmarkLeaderboardEntry[]; generatedAt: string }>(`/benchmarks${query}`, {
       method: "GET",
     });
+  }
+
+  /**
+   * Real-time WebSocket subscription to trajectory events (state transitions, AST repairs, tool outputs).
+   */
+  subscribeTrajectory(trajectoryId: string, onEvent: (event: any) => void): () => void {
+    if (typeof WebSocket === "undefined") {
+      // In Node.js environment without native WebSocket, gracefully return no-op unsubscriber
+      return () => {};
+    }
+
+    const ws = new WebSocket(`${this.wsUrl}/ws/trajectories/${trajectoryId}`);
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        onEvent(data);
+      } catch (err) {
+        onEvent({ raw: event.data });
+      }
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    };
   }
 }

@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { ParetoFrontierChart } from "@/components/pareto-frontier-chart";
 import { CprLeaderboardTable } from "@/components/cpr-leaderboard-table";
 import { VisionErrorDropzone } from "@/components/vision-error-dropzone";
+import { WhySwitchRoiCalculator } from "@/components/why-switch-roi-calculator";
 
 export default function HubPage() {
   const [selectedModelId, setSelectedModelId] = useState<string>("hybrid-gemini-pro-flash");
@@ -145,6 +146,11 @@ export default function HubPage() {
           selectedModelId={selectedModelId}
           onSelectModel={(id) => setSelectedModelId(id)}
         />
+      </div>
+
+      {/* Enterprise 'Why Switch?' ROI Calculator */}
+      <div className="mb-8">
+        <WhySwitchRoiCalculator />
       </div>
     </div>
   );

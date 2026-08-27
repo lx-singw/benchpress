@@ -23,6 +23,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { formatNumber, formatPercent, formatUsd } from "@/lib/utils";
 import { FsmState, TrajectoryStatus } from "@/lib/types";
+import { LiveTrajectoryView } from "@/components/replayer/live-trajectory-view";
 
 interface StepRecord {
   turn: number;
@@ -501,6 +502,31 @@ export default function LiveRunnerPage() {
             </div>
           </div>
         </GlassCard>
+      </div>
+
+      {/* Split-View Virtual Terminal & Token Burn Waterfall */}
+      <div className="mt-8">
+        <LiveTrajectoryView
+          turns={steps.map((s) => ({
+            turn_index: s.turn,
+            state: s.state,
+            model_id: s.model,
+            prompt_tokens: Math.round(s.cost * 80000),
+            completion_tokens: Math.round(s.cost * 20000),
+            reasoning_tokens: Math.round(s.cost * 10000),
+            turn_cost_usd: s.cost,
+            cumulative_cost_usd: s.cumulativeCost,
+            latency_ms: s.latencyMs,
+            tool_call_name: s.astHealed ? "editHunk" : s.turn === 1 ? "readFile" : "runPytest",
+            tool_call_payload: s.astHealed
+              ? { path: "django/core/validators.py", target_content: "^[\\w.@+-]+$", replacement_content: "\\A[\\w.@+-]+\\Z" }
+              : { command: "pytest tests/test_validators.py" },
+            ast_healed: s.astHealed,
+            sandbox_exit_code: 0,
+            sandbox_stdout: s.action,
+            timestamp: new Date().toISOString(),
+          }))}
+        />
       </div>
     </div>
   );

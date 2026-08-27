@@ -1,8 +1,18 @@
 """
-Benchpress 13-State Deterministic FSM Engine Package.
+Deterministic 13-State FSM Package.
 """
 
-from .states import FsmState, TrajectoryContext, TurnResult
-from .engine import AsyncFsmEngine
+from .states import FsmState, TrajectoryContext, TrajectoryStatus, TurnRecord
+from .transitions import validate_transition, STATE_TRANSITION_GRAPH, TransitionGuardViolation
+from .engine import AsyncFSMRunner
 
-__all__ = ["FsmState", "TrajectoryContext", "TurnResult", "AsyncFsmEngine"]
+__all__ = [
+    "FsmState",
+    "TrajectoryContext",
+    "TrajectoryStatus",
+    "TurnRecord",
+    "validate_transition",
+    "STATE_TRANSITION_GRAPH",
+    "TransitionGuardViolation",
+    "AsyncFSMRunner",
+]

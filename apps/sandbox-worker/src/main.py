@@ -1,16 +1,19 @@
 """
-Benchpress Sandbox Worker: FastAPI Cloud Tasks Target Service & Real-Time WebSocket Streaming.
+Benchpress Sandbox Worker: FastAPI Cloud Tasks Target & WebSocket Live Event Emitter.
 """
 
 import os
-import json
+import hmac
+import hashlib
 import logging
-from typing import Optional, Dict, Any, Set
+from typing import Optional, Dict, Any, List
 from fastapi import FastAPI, HTTPException, Request, Header, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from fsm.states import TrajectoryContext
-from fsm.engine import AsyncFsmEngine
+from config import settings
+from fsm.states import TrajectoryContext, TrajectoryStatus
+from fsm.engine import AsyncFSMRunner
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("benchpress.worker")
@@ -18,68 +21,40 @@ logger = logging.getLogger("benchpress.worker")
 app = FastAPI(
     title="Benchpress Sandbox Worker",
     version="1.0.0",
-    description="Cloud Run Gen2 Asynchronous Agent Trajectory Sandbox Worker",
+    description="Cloud Run Gen2 Asynchronous Agent Trajectory Sandbox Worker & 13-State FSM Runner",
 )
 
-
-class ConnectionManager:
-    """Manages active WebSocket connections by trajectory_id and global broadcast."""
-
-    def __init__(self):
-        self.active_connections: Dict[str, Set[WebSocket]] = {}
-        self.global_connections: Set[WebSocket] = set()
-
-    async def connect(self, websocket: WebSocket, trajectory_id: Optional[str] = None):
-        await websocket.accept()
-        if trajectory_id:
-            if trajectory_id not in self.active_connections:
-                self.active_connections[trajectory_id] = set()
-            self.active_connections[trajectory_id].add(websocket)
-        else:
-            self.global_connections.add(websocket)
-        logger.info(f"WebSocket client connected (trajectory: {trajectory_id or 'global'})")
-
-    def disconnect(self, websocket: WebSocket, trajectory_id: Optional[str] = None):
-        if trajectory_id and trajectory_id in self.active_connections:
-            self.active_connections[trajectory_id].discard(websocket)
-            if not self.active_connections[trajectory_id]:
-                del self.active_connections[trajectory_id]
-        else:
-            self.global_connections.discard(websocket)
-        logger.info(f"WebSocket client disconnected (trajectory: {trajectory_id or 'global'})")
-
-    async def broadcast_event(self, event: Dict[str, Any]):
-        """Broadcast event to both trajectory-specific and global listeners."""
-        payload_text = json.dumps(event)
-        traj_id = event.get("trajectory_id")
-
-        targets = set(self.global_connections)
-        if traj_id and traj_id in self.active_connections:
-            targets.update(self.active_connections[traj_id])
-
-        disconnected = []
-        for ws in targets:
-            try:
-                await ws.send_text(payload_text)
-            except Exception as e:
-                logger.warning(f"Failed to send to WebSocket: {e}")
-                disconnected.append(ws)
-
-        for ws in disconnected:
-            self.disconnect(ws, traj_id)
-
-
-manager = ConnectionManager()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class TrajectoryTaskPayload(BaseModel):
     trajectory_id: str
-    task_suite: str
-    task_id: str
-    model_id: str
+    task_suite: str = Field(default="SWE_BENCH_VERIFIED")
+    task_id: str = Field(default="django__django-11099")
+    model_id: str = Field(default="gemini-2.5-pro")
     budget_limit_usd: float = Field(default=2.00, ge=0.01)
     max_turns: int = Field(default=20, ge=1, le=50)
     metadata: Optional[Dict[str, Any]] = None
+
+
+# Active WebSocket connections dictionary: trajectory_id -> List[WebSocket]
+active_connections: Dict[str, List[WebSocket]] = {}
+
+
+async def broadcast_trajectory_event(trajectory_id: str, event_data: Dict[str, Any]):
+    """Broadcast real-time state change or turn completion to connected WebSocket clients."""
+    if trajectory_id in active_connections:
+        for ws in active_connections[trajectory_id]:
+            try:
+                await ws.send_json(event_data)
+            except Exception:
+                pass
 
 
 @app.get("/healthz")
@@ -90,13 +65,13 @@ async def health_check():
         "service": "benchpress-sandbox-worker",
         "version": "1.0.0",
         "runtime": "python-3.12",
-        "active_ws_connections": len(manager.global_connections) + sum(len(s) for s in manager.active_connections.values()),
+        "active_trajectories": len(active_connections),
     }
 
 
 async def _run_trajectory_job(payload: TrajectoryTaskPayload):
-    """Background task executing the 13-state trajectory loop with real-time WebSocket broadcasting."""
-    logger.info(f"Starting FSM engine for trajectory {payload.trajectory_id}")
+    """Background task executing the full 13-state FSM trajectory runner."""
+    logger.info(f"[Worker] Initiating AsyncFSMRunner for trajectory {payload.trajectory_id}")
     ctx = TrajectoryContext(
         trajectory_id=payload.trajectory_id,
         task_suite=payload.task_suite,
@@ -107,15 +82,21 @@ async def _run_trajectory_job(payload: TrajectoryTaskPayload):
         metadata=payload.metadata or {},
     )
 
-    async def _on_event(event: Dict[str, Any]):
-        await manager.broadcast_event(event)
-
-    engine = AsyncFsmEngine(context=ctx, on_event=_on_event)
-    result_ctx = await engine.run_trajectory()
+    runner = AsyncFSMRunner(context=ctx)
+    result_ctx = await runner.run()
     logger.info(
-        f"Completed trajectory {payload.trajectory_id}: "
-        f"resolved={result_ctx.resolved}, turns={result_ctx.current_turn}, cost=${result_ctx.accumulated_cost_usd:.4f}"
+        f"[Worker] Trajectory {payload.trajectory_id} finished: "
+        f"status={result_ctx.status.value}, pass_at_1={result_ctx.pass_at_1}, "
+        f"turns={result_ctx.current_turn}, cost=${result_ctx.accumulated_cost_usd:.4f}"
     )
+
+    await broadcast_trajectory_event(payload.trajectory_id, {
+        "type": "TRAJECTORY_FINISHED",
+        "status": result_ctx.status.value,
+        "pass_at_1": result_ctx.pass_at_1,
+        "turns_count": result_ctx.current_turn,
+        "total_cost_usd": result_ctx.accumulated_cost_usd,
+    })
 
 
 @app.post("/execute-task")
@@ -123,49 +104,59 @@ async def execute_trajectory_task(
     payload: TrajectoryTaskPayload,
     background_tasks: BackgroundTasks,
     x_cloudtasks_queuename: Optional[str] = Header(None),
+    x_benchpress_hmac: Optional[str] = Header(None),
 ):
     """Cloud Tasks HTTP Push Target for asynchronous benchmark runs."""
     logger.info(
-        f"Received benchmark task {payload.trajectory_id} for model {payload.model_id} "
-        f"(queue: {x_cloudtasks_queuename or 'direct'})"
+        f"[Worker] Received benchmark task {payload.trajectory_id} for model {payload.model_id} "
+        f"(task: {payload.task_id}, queue: {x_cloudtasks_queuename or 'direct'})"
     )
+
+    # Optional HMAC check if secret is configured and not in mock dev mode
+    if not settings.use_local_mock and x_benchpress_hmac:
+        expected_sig = hmac.new(
+            settings.benchpress_hmac_secret.encode(),
+            payload.trajectory_id.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(expected_sig, x_benchpress_hmac):
+            raise HTTPException(status_code=403, detail="Invalid HMAC signature")
+
     background_tasks.add_task(_run_trajectory_job, payload)
     return {
         "status": "PROCESSING",
         "trajectory_id": payload.trajectory_id,
         "model_id": payload.model_id,
         "task_id": payload.task_id,
-        "stream_url": f"/ws/trajectories/{payload.trajectory_id}",
+        "enqueued_at": ctx_now(),
     }
 
 
 @app.websocket("/ws/trajectories/{trajectory_id}")
 async def websocket_trajectory_stream(websocket: WebSocket, trajectory_id: str):
-    """Real-time turn and state transition WebSocket stream for a specific trajectory."""
-    await manager.connect(websocket, trajectory_id)
+    """WebSocket stream for real-time turn waterfall and FSM state events."""
+    await websocket.accept()
+    if trajectory_id not in active_connections:
+        active_connections[trajectory_id] = []
+    active_connections[trajectory_id].append(websocket)
+    logger.info(f"[WebSocket] Client connected for trajectory {trajectory_id}")
+
     try:
         while True:
-            data = await websocket.receive_text()
-            if data == "ping":
-                await websocket.send_text(json.dumps({"type": "PONG", "trajectory_id": trajectory_id}))
+            # Keep connection alive
+            await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket, trajectory_id)
+        active_connections[trajectory_id].remove(websocket)
+        if not active_connections[trajectory_id]:
+            del active_connections[trajectory_id]
+        logger.info(f"[WebSocket] Client disconnected for trajectory {trajectory_id}")
 
 
-@app.websocket("/ws/events")
-async def websocket_global_stream(websocket: WebSocket):
-    """Global multi-tenant stream broadcasting all active agent events."""
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            if data == "ping":
-                await websocket.send_text(json.dumps({"type": "PONG"}))
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
+def ctx_now() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
 
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
+    uvicorn.run("main:app", host=settings.host, port=settings.port, log_level="info")

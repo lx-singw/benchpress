@@ -2,6 +2,6 @@
 FinOps Budget Sentinel Package.
 """
 
-from .velocity_sentinel import VelocitySentinel, SentinelDecision
+from .velocity_sentinel import VelocitySentinel, SentinelEvaluationResult
 
-__all__ = ["VelocitySentinel", "SentinelDecision"]
+__all__ = ["VelocitySentinel", "SentinelEvaluationResult"]

@@ -1,7 +1,8 @@
 """
-Supervisor Package: Autonomous AST Tool-Healer.
+Supervisor Package: Autonomous AST Interceptor & Healer.
 """
 
+from .ast_interceptor import AstInterceptor
 from .ast_healer import AstHealer
 
-__all__ = ["AstHealer"]
+__all__ = ["AstInterceptor", "AstHealer"]

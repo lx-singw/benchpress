@@ -37,10 +37,13 @@ Thumbs.db
 
 # Test & Log Outputs
 *.log
+*.jsonl
+data/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.pytest_cache/bug.log*
 .pytest_cache/
 .coverage
 .ruff_cache/

@@ -1,70 +1,117 @@
 """
-Autonomous AST Tool-Healer for Tool Schema Signatures and Syntax Repair.
+Autonomous AST Tool-Healer & Gemini 2.5 Pro Dynamic Tool Patch Generator.
 """
 
 import ast
 import json
 import logging
-from typing import Tuple, Dict, Any, Optional
+from typing import Dict, Any, Tuple, Optional
+from tools.registry import ToolRegistry
 
 logger = logging.getLogger("benchpress.supervisor.ast_healer")
 
 
 class AstHealer:
-    """Detects, intercepts, and heals malformed LLM tool call ASTs and JSON schemas."""
+    """Detects, intercepts, and repairs malformed tool calls via autonomous AST normalization."""
 
-    def __init__(self, model_name: str = "gemini-2.5-pro"):
+    TOOL_NAME_MAP = {
+        "read_file": "readFile",
+        "write_file": "writeFile",
+        "edit_hunk": "editHunk",
+        "edit_file": "editHunk",
+        "run_bash_command": "runBashCommand",
+        "bash": "runBashCommand",
+        "terminal": "runBashCommand",
+        "run_pytest": "runPytest",
+        "pytest": "runPytest",
+    }
+
+    PARAM_MAP = {
+        "file_path": "path",
+        "filepath": "path",
+        "filename": "path",
+        "target": "target_content",
+        "hunk": "target_content",
+        "old_str": "target_content",
+        "old_content": "target_content",
+        "replacement": "replacement_content",
+        "new_str": "replacement_content",
+        "new_content": "replacement_content",
+        "cmd": "command",
+        "test": "test_path",
+    }
+
+    def __init__(self, model_name: str = "gemini-2.5-pro", registry: Optional[ToolRegistry] = None):
         self.model_name = model_name
-        self.healed_count = 0
+        self.registry = registry or ToolRegistry()
+        self.healing_events_count = 0
 
-    def validate_tool_call(self, payload: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-        """Validate if the tool payload has correct syntax and required parameters."""
-        if not isinstance(payload, dict):
-            return False, "Payload must be a dictionary"
-
-        if "tool" not in payload:
-            return False, "Missing 'tool' identifier in payload"
-
-        # If payload contains Python code replacement, check AST parseability
-        if "replacement" in payload and isinstance(payload["replacement"], str):
-            try:
-                ast.parse(payload["replacement"])
-            except SyntaxError as e:
-                return False, f"SyntaxError in replacement code: {e.msg} at line {e.lineno}"
-
-        return True, None
-
-    async def repair_payload(
+    async def heal_tool_call(
         self,
-        broken_payload: Dict[str, Any],
+        tool_name: str,
+        arguments: Any,
         error_message: str,
-    ) -> Tuple[Dict[str, Any], bool]:
-        """Perform autonomous AST repair on broken tool call payload."""
-        logger.info(f"Initiating AST Tool Healing for error: {error_message}")
-        repaired = dict(broken_payload)
+    ) -> Tuple[bool, str, Dict[str, Any], str]:
+        """Perform autonomous AST repair on broken tool call payload.
 
-        # Autonomous schema normalization
-        if "tool" not in repaired and "name" in repaired:
-            repaired["tool"] = repaired.pop("name")
+        Returns: (healed_success, repaired_tool_name, repaired_arguments, healing_trace)
+        """
+        logger.info(f"[ASTHealer] Attempting to heal tool '{tool_name}' for error: {error_message}")
+        self.healing_events_count += 1
 
-        if "arguments" in repaired and isinstance(repaired["arguments"], str):
+        repaired_tool = tool_name
+        # 1. Normalize tool name
+        if tool_name in self.TOOL_NAME_MAP:
+            repaired_tool = self.TOOL_NAME_MAP[tool_name]
+        elif tool_name.lower() in self.TOOL_NAME_MAP:
+            repaired_tool = self.TOOL_NAME_MAP[tool_name.lower()]
+
+        # 2. Parse arguments if string
+        if isinstance(arguments, str):
             try:
-                repaired["arguments"] = json.loads(repaired["arguments"])
+                args_dict = json.loads(arguments)
             except json.JSONDecodeError:
-                pass
+                # Attempt to strip python code block or trailing quotes
+                clean_str = arguments.strip().strip("`").replace("```json", "").replace("```", "")
+                try:
+                    args_dict = json.loads(clean_str)
+                except Exception:
+                    args_dict = {"raw_input": arguments}
+        elif isinstance(arguments, dict):
+            args_dict = dict(arguments)
+        else:
+            args_dict = {}
 
-        if "path" not in repaired and "file_path" in repaired:
-            repaired["path"] = repaired.pop("file_path")
+        # 3. Rename known mismatched parameters
+        repaired_args = {}
+        for k, v in args_dict.items():
+            normalized_key = self.PARAM_MAP.get(k, k)
+            repaired_args[normalized_key] = v
 
-        # Fix minor syntax issues in replacement string if any
-        if "replacement" in repaired and isinstance(repaired["replacement"], str):
-            code_str = repaired["replacement"]
-            # Deduplicate broken triple backticks or markdown fences
-            if code_str.startswith("```python") or code_str.startswith("```"):
-                code_str = "\n".join(code_str.splitlines()[1:])
-            if code_str.endswith("```"):
-                code_str = "\n".join(code_str.splitlines()[:-1])
-            repaired["replacement"] = code_str.strip()
+        # 4. If editHunk is missing target_content or replacement_content but has 'content' or 'diff', parse it
+        if repaired_tool == "editHunk":
+            if "target_content" not in repaired_args and "content" in repaired_args:
+                repaired_args["target_content"] = repaired_args.pop("content")
+            if "replacement_content" not in repaired_args and "replacement" in repaired_args:
+                repaired_args["replacement_content"] = repaired_args.pop("replacement")
 
-        self.healed_count += 1
-        return repaired, True
+            # Clean markdown code blocks from replacement_content if present
+            if "replacement_content" in repaired_args and isinstance(repaired_args["replacement_content"], str):
+                code = repaired_args["replacement_content"]
+                if code.startswith("```python"):
+                    code = "\n".join(code.splitlines()[1:])
+                elif code.startswith("```"):
+                    code = "\n".join(code.splitlines()[1:])
+                if code.endswith("```"):
+                    code = "\n".join(code.splitlines()[:-1])
+                repaired_args["replacement_content"] = code
+
+        # 5. Validate repaired call against registry
+        is_valid, validation_err = self.registry.validate_call(repaired_tool, repaired_args)
+        trace = (
+            f"Healed tool '{tool_name}' -> '{repaired_tool}'. "
+            f"Parameters mapped: {list(args_dict.keys())} -> {list(repaired_args.keys())}. "
+            f"Validation status: {'VALID' if is_valid else f'INVALID ({validation_err})'}"
+        )
+
+        return is_valid, repaired_tool, repaired_args, trace

@@ -16,7 +16,7 @@ variable "environment" {
 variable "project_id" {
   type        = string
   description = "The Google Cloud Project ID"
-  default     = "benchpress-hackathon-2026"
+  default     = "benchpress-platform"
 }
 
 variable "region" {

@@ -14,7 +14,7 @@ export function Footer() {
             <span className="text-zinc-400">The Economic Intelligence Platform for AI Agents</span>
           </div>
           <p className="text-zinc-500 font-sans text-xs max-w-md">
-            Engineered for Google Cloud Hackathon (2026). Continuous SWE-bench evaluation on Cloud Run Gen2 with gVisor sandboxing and BigQuery analytics.
+            The Enterprise Economic & Trajectory Intelligence Platform for Autonomous AI Agents. Continuous SWE-bench evaluation on Cloud Run Gen2 with gVisor sandboxing and BigQuery analytics.
           </p>
         </div>
 

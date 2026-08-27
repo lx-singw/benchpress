@@ -6,7 +6,7 @@
 set -euo pipefail
 
 ENV="dev"
-PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-benchpress-hackathon-2026}"
+PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-benchpress-platform}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 
 # --- Parse CLI Arguments ---

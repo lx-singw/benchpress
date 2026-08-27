@@ -6,7 +6,7 @@
 set -euo pipefail
 
 ENV="dev"
-PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-benchpress-hackathon-2026}"
+PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-benchpress-platform}"
 REGION="${GOOGLE_CLOUD_REGION:-us-central1}"
 WEB_URL=""
 

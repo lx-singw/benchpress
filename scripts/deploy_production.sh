@@ -9,7 +9,7 @@ echo "🚀 =================================================================="
 echo "   BENCHPRESS: AUTOMATED GCP PRODUCTION CLOUD DEPLOYMENT"
 echo "=================================================================="
 
-export PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-benchpress-prod-2026}"
+export PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-benchpress-platform}"
 export REGION="${GOOGLE_CLOUD_REGION:-us-central1}"
 export GAR_REPO="benchpress-artifacts"
 

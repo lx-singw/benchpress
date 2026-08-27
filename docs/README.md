@@ -118,6 +118,7 @@ The complete documentation suite comprises **52 production-grade technical speci
 | | [**`03-data-pipeline-and-bigquery.md`**](./architecture/03-data-pipeline-and-bigquery.md) | BigQuery Storage Write API, Redis Buffer & DDL SQL Schemas | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`04-gcp-infrastructure-iac.md`**](./architecture/04-gcp-infrastructure-iac.md) | Production Terraform HCL Manifests & GitHub Actions CI/CD | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`05-resilience-and-threat-model.md`**](./architecture/05-resilience-and-threat-model.md) | 12-Failure FMEA Matrix, eBPF Egress Probes & Chaos Test Matrix | 🏛️ **Best Architectural Design** ($5k) |
+| | [**`06-agent-orchestration-and-swarm-topology.md`**](./architecture/06-agent-orchestration-and-swarm-topology.md) | Multi-Agent Swarm Roles, Supervisor-Worker Protocols & Dynamic Delegation | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`ADR-001-cloud-tasks-vs-pubsub.md`**](./architecture/adrs/ADR-001-cloud-tasks-vs-pubsub.md) | Cloud Tasks vs. Pub/Sub for Deterministic Dispatch | Architectural Rigor |
 | | [**`ADR-002-bigquery-telemetry-storage.md`**](./architecture/adrs/ADR-002-bigquery-telemetry-storage.md) | BigQuery Storage Write API vs. Cloud SQL/Spanner | Architectural Rigor |
 | | [**`ADR-003-hybrid-model-routing-choreography.md`**](./architecture/adrs/ADR-003-hybrid-model-routing-choreography.md) | 2-Tiered Hybrid Routing (Gemini 2.5 Pro + 3.5 Flash) | Architectural Rigor |
@@ -176,6 +177,7 @@ The complete documentation suite comprises **52 production-grade technical speci
 ### 2. 🏛️ Best Architectural Design Highlights ($5,000 Target)
 - **2-Service Monorepo Blueprint:** Review [Technical Implementation Guide](./implementation/01-technical-implementation-guide.md) featuring Next.js 15 Edge App Router + Python 3.12 gVisor Sandbox Worker.
 - **13-State Deterministic FSM & Healer:** Review [Agentic Runtime & FSM](./architecture/02-agentic-runtime-and-fsm.md).
+- **Multi-Agent Orchestration & Swarm Topology:** Review [Agent Orchestration & Swarm Topology](./architecture/06-agent-orchestration-and-swarm-topology.md).
 - **Architectural Decision Records (Complete 10 ADR Suite):**
   - [ADR-001 (Cloud Tasks vs. Pub/Sub)](./architecture/adrs/ADR-001-cloud-tasks-vs-pubsub.md)
   - [ADR-002 (BigQuery Storage Write API)](./architecture/adrs/ADR-002-bigquery-telemetry-storage.md)

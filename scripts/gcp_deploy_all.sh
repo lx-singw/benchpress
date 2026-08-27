@@ -108,17 +108,29 @@ fi
 
 # 3. Apply Terraform Infrastructure
 if [ "$SKIP_TERRAFORM" = false ]; then
-  echo ""
-  echo "📦 Step 3: Applying Terraform Infrastructure for '$ENV' ($([ "$ENV" = "dev" ] && echo "$0/mo Scale-to-Zero" || echo "Pre-warmed HA"))..."
-  cd infra/terraform
-  terraform init -input=false
-  terraform apply \
-    -var-file="environments/${ENV}.tfvars" \
-    -var="project_id=${PROJECT_ID}" \
-    -var="region=${REGION}" \
-    -auto-approve \
-    -input=false
-  cd ../..
+  if ! command -v terraform >/dev/null 2>&1; then
+    echo ""
+    echo "⚠️ Warning: 'terraform' CLI is not installed or not in PATH."
+    echo "   To install Terraform on Ubuntu/WSL, run:"
+    echo "   sudo apt-get update && sudo apt-get install -y gnupg software-properties-common curl"
+    echo "   curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg"
+    echo "   echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/hashicorp.list"
+    echo "   sudo apt-get update && sudo apt-get install -y terraform"
+    echo ""
+    echo "   Skipping Terraform infrastructure apply step."
+  else
+    echo ""
+    echo "📦 Step 3: Applying Terraform Infrastructure for '$ENV' ($([ "$ENV" = "dev" ] && echo "\$0/mo Scale-to-Zero" || echo "Pre-warmed HA"))..."
+    cd infra/terraform
+    terraform init -input=false
+    terraform apply \
+      -var-file="environments/${ENV}.tfvars" \
+      -var="project_id=${PROJECT_ID}" \
+      -var="region=${REGION}" \
+      -auto-approve \
+      -input=false
+    cd ../..
+  fi
 else
   echo "⏩ Skipping Terraform application (--skip-terraform)"
 fi

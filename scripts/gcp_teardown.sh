@@ -88,7 +88,7 @@ fi
 # 2. Destroy Terraform State for Target Environment
 echo ""
 echo "📦 Step 2: Executing Terraform Destroy with 'environments/${ENV}.tfvars'..."
-if [ -d "infra/terraform" ]; then
+if command -v terraform >/dev/null 2>&1 && [ -d "infra/terraform" ]; then
   cd infra/terraform
   terraform destroy \
     -var-file="environments/${ENV}.tfvars" \
@@ -97,6 +97,8 @@ if [ -d "infra/terraform" ]; then
     -auto-approve \
     -input=false
   cd ../..
+else
+  echo "   (Terraform destroy skipped - CLI not installed or directory missing)"
 fi
 
 echo ""

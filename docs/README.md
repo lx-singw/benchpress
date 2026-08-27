@@ -108,7 +108,7 @@ flowchart TB
 
 ## 📑 Complete 12-Folder Master Documentation Taxonomy
 
-The complete documentation suite comprises **52 production-grade technical specifications** organized into 12 core domains:
+The complete documentation suite comprises **57 production-grade technical specifications** organized into 12 core domains:
 
 | Domain | Document Path | Category & Core Topics | Target Hackathon Track |
 | :--- | :--- | :--- | :--- |
@@ -119,6 +119,7 @@ The complete documentation suite comprises **52 production-grade technical speci
 | | [**`04-gcp-infrastructure-iac.md`**](./architecture/04-gcp-infrastructure-iac.md) | Production Terraform HCL Manifests & GitHub Actions CI/CD | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`05-resilience-and-threat-model.md`**](./architecture/05-resilience-and-threat-model.md) | 12-Failure FMEA Matrix, eBPF Egress Probes & Chaos Test Matrix | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`06-agent-orchestration-and-swarm-topology.md`**](./architecture/06-agent-orchestration-and-swarm-topology.md) | Multi-Agent Swarm Roles, Supervisor-Worker Protocols & Dynamic Delegation | 🏛️ **Best Architectural Design** ($5k) |
+| | [**`07-master-data-schemas-and-er-models.md`**](./architecture/07-master-data-schemas-and-er-models.md) | Master Data Dictionary, Entity-Relationship Models & Protobuf Wire Contracts | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`ADR-001-cloud-tasks-vs-pubsub.md`**](./architecture/adrs/ADR-001-cloud-tasks-vs-pubsub.md) | Cloud Tasks vs. Pub/Sub for Deterministic Dispatch | Architectural Rigor |
 | | [**`ADR-002-bigquery-telemetry-storage.md`**](./architecture/adrs/ADR-002-bigquery-telemetry-storage.md) | BigQuery Storage Write API vs. Cloud SQL/Spanner | Architectural Rigor |
 | | [**`ADR-003-hybrid-model-routing-choreography.md`**](./architecture/adrs/ADR-003-hybrid-model-routing-choreography.md) | 2-Tiered Hybrid Routing (Gemini 2.5 Pro + 3.5 Flash) | Architectural Rigor |
@@ -155,16 +156,22 @@ The complete documentation suite comprises **52 production-grade technical speci
 | | [**`02-verification-and-testing-plan.md`**](./implementation/02-verification-and-testing-plan.md) | 4-Tier Test Matrix (Vitest, Playwright, Pytest, k6 sub-50ms SLA) | ⚙️ **The Taskmaster** |
 | | [**`03-deployment-runbook-and-ci-cd.md`**](./implementation/03-deployment-runbook-and-ci-cd.md) | Multi-Stage Docker Builds & GitHub Actions Cloud Run Deploy | ⚙️ **The Taskmaster** |
 | | [**`04-local-development-and-mocking.md`**](./implementation/04-local-development-and-mocking.md) | Turborepo Dev Workflow & Offline Vertex AI Mock Stubs | ⚙️ **The Taskmaster** |
+| | [**`05-environment-variables-and-secrets.md`**](./implementation/05-environment-variables-and-secrets.md) | Exhaustive .env Matrix, Secret Manager Runtime Mounting & IAM Roles | 🛡️ **The Fortified Enterprise Fleet** |
+| | [**`06-troubleshooting-and-faq.md`**](./implementation/06-troubleshooting-and-faq.md) | Diagnostic Decision Trees, Automated Self-Healing & Judge Evaluation FAQ | ⚙️ **The Taskmaster** |
 | **9. Methodology** | [**`01-benchmark-methodology-metrics.md`**](./methodology/01-benchmark-methodology-metrics.md) | Mathematical Formulations (CPR, TBR, Pareto Score, Decay) | Scientific Rigor |
 | | [**`02-task-suites-and-eval-sets.md`**](./methodology/02-task-suites-and-eval-sets.md) | SWE-Bench Verified, Financial Recon & Multi-Doc Ops Suites | Scientific Rigor |
+| | [**`03-glossary-of-terms.md`**](./methodology/03-glossary-of-terms.md) | Master Glossary of Agentic Economics, LaTeX Formulations & FSM Concepts | Scientific Rigor |
 | **10. API & SDKs** | [**`01-api-specification.md`**](./api/01-api-specification.md) | Complete OpenAPI 3.0 YAML Spec & Request/Response JSONs | Developer Ecosystem |
 | | [**`02-model-router-integration.md`**](./api/02-model-router-integration.md) | Python/TS SDKs, Cursor/Windsurf Adapters & "Why Switch?" Widget | Developer Ecosystem |
+| | [**`03-websocket-streaming-protocol.md`**](./api/03-websocket-streaming-protocol.md) | Real-Time WebSocket Event Streaming Protocol & JSON Schemas | 🎨 **Best Multimodal UX** ($5k) |
 | **11. Community** | [**`01-contributing-guide.md`**](./community/01-contributing-guide.md) | Open-Source Contribution Protocols & Git Standards | Community & Ecosystem |
 | | [**`02-benchmark-submission-rfc.md`**](./community/02-benchmark-submission-rfc.md) | RFC Protocol for Submitting Community Benchmark Suites | Community & Ecosystem |
 | | [**`03-model-vendor-verification-protocol.md`**](./community/03-model-vendor-verification-protocol.md) | Official Model Vendor Verification Protocol (VVP) | Community & Ecosystem |
 | **12. Submission** | [**`01-devpost-narrative.md`**](./hackathon/01-devpost-narrative.md) | Official Devpost Story & Google Cloud 100% Rubric Checklist | 🏆 **Hackathon Winner** |
 | | [**`02-demo-video-script.md`**](./hackathon/02-demo-video-script.md) | Second-by-Second 3-Minute Timed Video Script & Storyboard | 🏆 **Hackathon Winner** |
 | | [**`03-judging-criteria-deep-dive.md`**](./hackathon/03-judging-criteria-deep-dive.md) | Definitive Rubric Proof for 40% Utility & 30% Architecture | 🏆 **Hackathon Winner** |
+| | [**`04-final-submission-checklist.md`**](./hackathon/04-final-submission-checklist.md) | Official Submission Checklist & Release Verification Gate | 🏆 **Hackathon Winner** |
+| | [**`05-competition-readiness-report.md`**](./hackathon/05-competition-readiness-report.md) | Deep Completeness Analysis & 4-Day Win Optimization Plan | 🏆 **Hackathon Winner** |
 
 ---
 
@@ -173,9 +180,12 @@ The complete documentation suite comprises **52 production-grade technical speci
 ### 1. 🚀 10/10 Rubric Deep-Dive & Autonomous Proof
 - **Definitive Rubric Proof:** Read [Official Judging Criteria Deep-Dive](./hackathon/03-judging-criteria-deep-dive.md) detailing line-by-line proof for **40% Autonomous Utility** and **30% Architectural Discipline**.
 - **The 5 Autonomous Pillars:** Explore the [Devpost Narrative](./hackathon/01-devpost-narrative.md) and [Video Script](./hackathon/02-demo-video-script.md).
+- **Troubleshooting Runbooks & Judge FAQ:** Consult [Troubleshooting & Judge FAQ](./implementation/06-troubleshooting-and-faq.md) for self-healing error trees and evaluation neutrality guarantees.
+- **Mathematical Formulations & Glossary:** Inspect [Master Glossary of Agentic Economics](./methodology/03-glossary-of-terms.md) for formal LaTeX formulations of CPR, TBR, $\Delta_{\text{decay}}$, and Pareto Frontier.
 
 ### 2. 🏛️ Best Architectural Design Highlights ($5,000 Target)
 - **2-Service Monorepo Blueprint:** Review [Technical Implementation Guide](./implementation/01-technical-implementation-guide.md) featuring Next.js 15 Edge App Router + Python 3.12 gVisor Sandbox Worker.
+- **Master Data Dictionary & ER Models:** Inspect [Master Data Schemas & ER Models](./architecture/07-master-data-schemas-and-er-models.md) for BigQuery DDL, Firestore schemas, Redis namespaces, and Protobuf contracts.
 - **13-State Deterministic FSM & Healer:** Review [Agentic Runtime & FSM](./architecture/02-agentic-runtime-and-fsm.md).
 - **Multi-Agent Orchestration & Swarm Topology:** Review [Agent Orchestration & Swarm Topology](./architecture/06-agent-orchestration-and-swarm-topology.md).
 - **Architectural Decision Records (Complete 10 ADR Suite):**
@@ -193,7 +203,9 @@ The complete documentation suite comprises **52 production-grade technical speci
 ### 3. 🎨 Best Multimodal UX Highlights ($5,000 Target)
 - **Tri-Modal Interaction Spec:** Review [Multimodal UX Spec](./design/01-multimodal-ux-spec.md) combining sub-200ms Gemini Live duplex voice, vision error ingestion, and tactile canvas manipulation.
 - **Sub-200ms WebRTC Streaming Protocol:** Inspect [Multimodal Interaction Flow](./design/04-multimodal-interaction-flow.md).
+- **Real-Time WebSocket Streaming Protocol:** Inspect [WebSocket Streaming Protocol Specification](./api/03-websocket-streaming-protocol.md) for live telemetry streaming, DOM highlights, and reconnection state replay.
 
 ### 4. 🛡️ The Fortified Enterprise Fleet Highlights
+- **Environment Variables & Secrets Matrix:** Inspect [Environment Variables, Secrets & IAM Matrix](./implementation/05-environment-variables-and-secrets.md) for Zero-Static runtime secrets and Least-Privilege service account bindings.
 - **Autonomous Safeguards & Kill-Switches:** Inspect [Autonomous Safeguards](./governance/05-autonomous-safeguards-and-human-override.md) for hard spending caps, gVisor sandboxing, `[BENCHPRESS-AUTO]` PR merge gates, and global emergency kill-switches.
 - **PII Scrubbing & Cloud DLP:** Inspect [Data Privacy](./governance/02-data-privacy-and-pii-masking.md).

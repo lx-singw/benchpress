@@ -5,10 +5,12 @@ Benchpress Async & Sync Python Client for Model Routers & Agents.
 from typing import Optional, Dict, Any, List
 import os
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class RoutingRecommendation(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     recommended_strategy: str = Field(alias="recommendedStrategy")
     planner_model: str = Field(alias="plannerModel")
     coder_model: str = Field(alias="coderModel")
@@ -17,9 +19,6 @@ class RoutingRecommendation(BaseModel):
     projected_savings_pct: float = Field(alias="projectedSavingsPct")
     confidence_score: float = Field(alias="confidenceScore")
     evaluated_at: Optional[str] = Field(default=None, alias="evaluatedAt")
-
-    class Config:
-        populate_by_name = True
 
 
 class TrajectorySubmissionResponse(BaseModel):
@@ -31,6 +30,8 @@ class TrajectorySubmissionResponse(BaseModel):
 
 
 class BenchmarkEntry(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     model_id: str = Field(alias="modelId")
     model_name: str = Field(alias="modelName")
     provider: str
@@ -40,9 +41,6 @@ class BenchmarkEntry(BaseModel):
     mean_turns: float = Field(alias="meanTurns")
     mean_latency_seconds: float = Field(alias="meanLatencySeconds")
     pareto_frontier: bool = Field(alias="paretoFrontier")
-
-    class Config:
-        populate_by_name = True
 
 
 class BenchpressClient:

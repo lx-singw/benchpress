@@ -4,8 +4,9 @@
 
 import asyncio
 import logging
-from typing import Optional, Dict, Any
-from datetime import datetime
+from typing import Optional, Dict, Any, Callable, Awaitable
+from datetime import datetime, timezone
+from dataclasses import asdict
 
 from .states import FsmState, TrajectoryContext, TurnResult
 from supervisor.ast_healer import AstHealer
@@ -28,6 +29,7 @@ class AsyncFsmEngine:
         velocity_sentinel: Optional[VelocitySentinel] = None,
         memory_bus: Optional[MemoryBus] = None,
         bq_streamer: Optional[BigQueryStreamer] = None,
+        on_event: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,
     ):
         self.ctx = context
         self.sandbox = sandbox_runner or SandboxRunner()
@@ -35,10 +37,29 @@ class AsyncFsmEngine:
         self.sentinel = velocity_sentinel or VelocitySentinel(budget_limit_usd=context.budget_limit_usd)
         self.memory = memory_bus or MemoryBus()
         self.streamer = bq_streamer or BigQueryStreamer()
+        self.on_event = on_event
 
-    async def transition_to(self, new_state: FsmState):
+    async def _emit_event(self, event: Dict[str, Any]):
+        """Emit real-time event to registered subscriber/WebSocket hook."""
+        if self.on_event:
+            try:
+                await self.on_event(event)
+            except Exception as e:
+                logger.warning(f"Error executing on_event callback: {e}")
+
+    async def transition_to(self, new_state: FsmState, extra_data: Optional[Dict[str, Any]] = None):
         logger.info(f"[{self.ctx.trajectory_id}] FSM Transition: {self.ctx.current_state} -> {new_state}")
         self.ctx.current_state = new_state
+        event = {
+            "type": "STATE_CHANGE",
+            "trajectory_id": self.ctx.trajectory_id,
+            "state": new_state.value,
+            "turn": self.ctx.current_turn,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if extra_data:
+            event.update(extra_data)
+        await self._emit_event(event)
 
     async def run_trajectory(self) -> TrajectoryContext:
         """Execute full trajectory loop across FSM states."""
@@ -111,6 +132,11 @@ class AsyncFsmEngine:
                     git_tree_hash=snapshot_hash,
                 )
                 self.ctx.turns.append(turn_record)
+                await self._emit_event({
+                    "type": "TURN_COMPLETED",
+                    "trajectory_id": self.ctx.trajectory_id,
+                    "turn": asdict(turn_record),
+                })
 
                 if decision.action == "EARLY_HALT":
                     self.ctx.early_halted = True
@@ -139,10 +165,29 @@ class AsyncFsmEngine:
             # 13. State: HALT_TERMINAL
             await self.transition_to(FsmState.HALT_TERMINAL)
 
+            await self._emit_event({
+                "type": "TRAJECTORY_FINISHED",
+                "trajectory_id": self.ctx.trajectory_id,
+                "resolved": self.ctx.resolved,
+                "early_halted": self.ctx.early_halted,
+                "halt_reason": self.ctx.halt_reason,
+                "total_cost": self.ctx.accumulated_cost_usd,
+                "total_turns": self.ctx.current_turn,
+            })
+
         except Exception as e:
             logger.error(f"[{self.ctx.trajectory_id}] FSM Exception: {e}", exc_info=True)
             self.ctx.early_halted = True
             self.ctx.halt_reason = f"FSM Execution Error: {str(e)}"
             await self.transition_to(FsmState.HALT_TERMINAL)
+            await self._emit_event({
+                "type": "TRAJECTORY_FINISHED",
+                "trajectory_id": self.ctx.trajectory_id,
+                "resolved": False,
+                "early_halted": True,
+                "halt_reason": self.ctx.halt_reason,
+                "total_cost": self.ctx.accumulated_cost_usd,
+                "total_turns": self.ctx.current_turn,
+            })
 
         return self.ctx

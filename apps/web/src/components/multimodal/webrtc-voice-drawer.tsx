@@ -15,6 +15,7 @@ export function WebRtcVoiceDrawer({ isOpen, onClose }: WebRtcVoiceDrawerProps) {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [status, setStatus] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
   const [inputText, setInputText] = useState("");
+  const [isMicBlocked, setIsMicBlocked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Initialize WebRTC session manager
@@ -22,7 +23,8 @@ export function WebRtcVoiceDrawer({ isOpen, onClose }: WebRtcVoiceDrawerProps) {
     const mgr = new WebRtcClientManager();
     mgr.setCallbacks(
       (msg) => setMessages((prev) => [...prev, msg]),
-      (st) => setStatus(st)
+      (st) => setStatus(st),
+      (blocked) => setIsMicBlocked(blocked)
     );
     setSessionManager(mgr);
 
@@ -95,6 +97,14 @@ export function WebRtcVoiceDrawer({ isOpen, onClose }: WebRtcVoiceDrawerProps) {
         </button>
       </div>
 
+      {/* Non-Blocking Microphone Graceful Degradation Banner */}
+      {isMicBlocked && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 flex items-center gap-2 text-xs font-mono text-amber-300 animate-in fade-in duration-300">
+          <MicOff className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>Microphone access blocked — Switched to Interactive Voice Simulator Mode</span>
+        </div>
+      )}
+
       {/* Waveform Oscilloscope & Status Banner */}
       <div className="p-5 bg-white/[0.02] border-b border-white/5 space-y-3">
         <div className="flex items-center justify-between text-xs font-mono">
@@ -108,27 +118,30 @@ export function WebRtcVoiceDrawer({ isOpen, onClose }: WebRtcVoiceDrawerProps) {
                 : "bg-amber-500/20 text-amber-300"
             }`}
           >
-            {status}
+            {isMicBlocked ? "SIMULATOR ACTIVE" : status}
           </span>
         </div>
 
         <AudioWaveformCanvas sessionManager={sessionManager} isActive={isOpen} color="#00F0FF" />
 
-        {/* Quick Diagnostic Suggestions */}
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {[
-            "Why did Turn 3 fail?",
-            "Optimize Pareto weights for cost",
-            "Explain Enterprise ROI",
-          ].map((prompt) => (
-            <button
-              key={prompt}
-              onClick={() => handleQuickPrompt(prompt)}
-              className="text-[11px] font-mono px-2.5 py-1 rounded-md bg-white/5 hover:bg-[#00F0FF]/15 border border-white/10 text-zinc-300 hover:text-[#00F0FF] transition"
-            >
-              {prompt}
-            </button>
-          ))}
+        {/* 3 Clickable Spoken Judge Diagnostic Prompts */}
+        <div className="space-y-1.5 pt-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Judge Voice Prompts:</span>
+          <div className="flex flex-col gap-1.5">
+            {[
+              { label: "💬 Why did turn 12 fail on regex validation?", query: "Why did turn 12 fail on regex validation?" },
+              { label: "💬 Explain how the hybrid routing saved 87% cost on this run.", query: "Explain how the hybrid routing saved 87% cost on this run." },
+              { label: "💬 What tool did the AST Healer patch in turn 4?", query: "What tool did the AST Healer patch in turn 4?" },
+            ].map((item) => (
+              <button
+                key={item.query}
+                onClick={() => handleQuickPrompt(item.query)}
+                className="text-[11px] font-mono text-left px-3 py-1.5 rounded-md bg-white/5 hover:bg-[#00F0FF]/15 border border-white/10 text-zinc-300 hover:text-[#00F0FF] transition shadow-sm"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

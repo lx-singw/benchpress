@@ -126,17 +126,56 @@ class EphemeralWorktreeProvisioner:
             with open(os.path.join(test_dir, "test_app.py"), "w") as f:
                 f.write("import pytest\nfrom src.app import resolve_query\ndef test_query():\n    assert resolve_query() is True\n")
 
+        with open(os.path.join(temp_dir, ".gitignore"), "w") as f:
+            f.write("__pycache__/\n*.pyc\n.pytest_cache/\n")
+
         # 3. Initial Git Commit
         await (await asyncio.create_subprocess_exec("git", "add", "-A", cwd=temp_dir)).wait()
         await (await asyncio.create_subprocess_exec("git", "commit", "-m", f"Initial SWE-bench fixture: {task_id}", cwd=temp_dir)).wait()
 
+        # 4. Safeguard: Lock tests/ directory as Read-Only (chmod 444)
+        cls.lock_test_suite_read_only(temp_dir)
+
         return temp_dir
+
+    @classmethod
+    def lock_test_suite_read_only(cls, workspace_dir: str):
+        """
+        Set tests/ directory and all child test files as Read-Only.
+        Safeguard: Prevents agent tool calls or rogue scripts from modifying test assertions.
+        """
+        import stat
+        test_dir = os.path.join(workspace_dir, "tests")
+        if os.path.exists(test_dir):
+            for root, dirs, files in os.walk(test_dir):
+                for fname in files:
+                    fpath = os.path.join(root, fname)
+                    try:
+                        current_mode = os.stat(fpath).st_mode
+                        os.chmod(fpath, current_mode & ~stat.S_IWRITE & ~stat.S_IWGRP & ~stat.S_IWOTH)
+                    except Exception as e:
+                        logger.debug(f"[Worktree] Could not set read-only on {fpath}: {e}")
+
+    @classmethod
+    def unlock_test_suite_for_cleanup(cls, workspace_dir: str):
+        """Restore write permissions so rmtree can delete directory cleanly."""
+        import stat
+        if not os.path.exists(workspace_dir):
+            return
+        for root, dirs, files in os.walk(workspace_dir):
+            for fname in files:
+                fpath = os.path.join(root, fname)
+                try:
+                    os.chmod(fpath, stat.S_IWRITE | stat.S_IREAD)
+                except Exception:
+                    pass
 
     @classmethod
     async def cleanup_worktree(cls, worktree_dir: str):
         """Teardown ephemeral directory."""
         if os.path.exists(worktree_dir):
             try:
+                cls.unlock_test_suite_for_cleanup(worktree_dir)
                 shutil.rmtree(worktree_dir, ignore_errors=True)
                 logger.info(f"[Worktree] Cleaned up workspace {worktree_dir}")
             except Exception as e:

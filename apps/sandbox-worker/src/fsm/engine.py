@@ -1,11 +1,9 @@
-"""
-Core 13-State Deterministic FSM Execution Engine (`AsyncFSMRunner`).
-"""
-
 import os
 import asyncio
 import logging
-from typing import Optional, Dict, Any, List
+import random
+import functools
+from typing import Optional, Dict, Any, List, Callable, Coroutine
 from datetime import datetime, timezone
 
 from .states import FsmState, TrajectoryContext, TrajectoryStatus, TurnRecord
@@ -24,6 +22,52 @@ from tools.pytest_runner import PytestRunnerTool
 from telemetry.bq_streamer import BigQueryStreamer
 
 logger = logging.getLogger("benchpress.fsm.engine")
+
+
+def retry_with_exponential_jitter(
+    max_retries: int = 5,
+    base_delay: float = 1.0,
+    max_delay: float = 30.0,
+    retry_exceptions: tuple = (Exception,),
+):
+    """
+    Decorator implementing Full Jitter Exponential Backoff for Vertex AI / Gemini API calls:
+    T_wait = random.uniform(0, min(max_delay, base_delay * 2^attempt))
+    """
+    def decorator(func: Callable[..., Coroutine[Any, Any, Any]]):
+        @functools.wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_err: Optional[Exception] = None
+            for attempt in range(max_retries):
+                try:
+                    return await func(*args, **kwargs)
+                except retry_exceptions as exc:
+                    last_err = exc
+                    err_str = str(exc).lower()
+                    is_rate_limit = (
+                        "429" in err_str
+                        or "resourceexhausted" in err_str
+                        or "quota" in err_str
+                        or "rate limit" in err_str
+                        or "too many requests" in err_str
+                    )
+                    
+                    if attempt == max_retries - 1:
+                        logger.error(f"[RateLimitArmor] Max retries ({max_retries}) exhausted: {exc}")
+                        raise
+                    
+                    # Full Jitter backoff calculation
+                    backoff_cap = min(max_delay, base_delay * (2 ** attempt))
+                    sleep_time = random.uniform(0.01, backoff_cap)
+                    logger.warning(
+                        f"[RateLimitArmor] Rate limit / quota 429 intercepted (Attempt {attempt + 1}/{max_retries}). "
+                        f"Sleeping {sleep_time:.2f}s (Jitter Cap: {backoff_cap:.2f}s). Error: {exc}"
+                    )
+                    await asyncio.sleep(sleep_time)
+            if last_err:
+                raise last_err
+        return wrapper
+    return decorator
 
 
 class AsyncFSMRunner:

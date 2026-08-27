@@ -90,9 +90,10 @@ const INITIAL_STEPS: StepRecord[] = [
 ];
 
 export default function LiveRunnerPage() {
-  const [modelId, setModelId] = useState<string>("gemini-2.5-pro");
+  const [runnerMode, setRunnerMode] = useState<"instant_replay" | "live_dispatch">("instant_replay");
+  const [modelId, setModelId] = useState<string>("hybrid-gemini-pro-flash");
   const [taskSuite, setTaskSuite] = useState<string>("SWE_BENCH_VERIFIED");
-  const [taskId, setTaskId] = useState<string>("django__django-12858");
+  const [taskId, setTaskId] = useState<string>("django__django-11099");
   const [budgetLimit, setBudgetLimit] = useState<number>(2.0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [trajectoryId, setTrajectoryId] = useState<string>("traj-8f4b2a9c");
@@ -125,14 +126,14 @@ export default function LiveRunnerPage() {
     };
   }, []);
 
-  const simulateStepProgression = (newTrajId: string) => {
+  const simulateStepProgression = (newTrajId: string, speedMs: number = 500) => {
     const simulatedStream: StepRecord[] = [
       {
         turn: 1,
         state: FsmState.INIT_ENVIRONMENT,
-        model: modelId,
-        cost: 0.006,
-        cumulativeCost: 0.006,
+        model: "gemini-2.5-pro",
+        cost: 0.005,
+        cumulativeCost: 0.005,
         latencyMs: 310,
         astHealed: false,
         action: `Provisioned AMD SEV-SNP confidential gVisor sandbox for ${taskId}`,
@@ -140,42 +141,42 @@ export default function LiveRunnerPage() {
       {
         turn: 2,
         state: FsmState.PROMPT_PLANNER,
-        model: modelId,
-        cost: 0.032,
-        cumulativeCost: 0.038,
-        latencyMs: 1450,
+        model: "gemini-2.5-pro",
+        cost: 0.018,
+        cumulativeCost: 0.023,
+        latencyMs: 1250,
         astHealed: false,
-        action: "High-order Reasoning Planner generated patch hypothesis and AST edit sequence",
+        action: "High-order Reasoning Planner generated patch hypothesis: Replace regex anchor with \\A...\\Z",
       },
       {
         turn: 3,
         state: FsmState.VALIDATE_AST,
         model: "gemini-2.5-flash",
-        cost: 0.014,
-        cumulativeCost: 0.052,
-        latencyMs: 480,
+        cost: 0.001,
+        cumulativeCost: 0.024,
+        latencyMs: 142,
         astHealed: true,
-        action: "AST Healer detected syntax omission -> synthesized Python wrapper adapter",
+        action: "Supervisor AST Healer intercepted non-standard tool parameter 'lines' -> mapped to 'editHunk'",
       },
       {
         turn: 4,
         state: FsmState.EXECUTE_SANDBOX,
         model: "gemini-2.5-flash",
-        cost: 0.021,
-        cumulativeCost: 0.073,
-        latencyMs: 1980,
+        cost: 0.0005,
+        cumulativeCost: 0.0245,
+        latencyMs: 420,
         astHealed: false,
-        action: "Executed test suite: 0 regressions, all assertion fixtures satisfied",
+        action: "Executed pytest in isolated gVisor sandbox: test_ascii_username_validator PASSED (0 regressions)",
       },
       {
         turn: 5,
         state: FsmState.FINOPS_SENTINEL,
         model: "sentinel-markov-v1",
-        cost: 0.002,
-        cumulativeCost: 0.075,
-        latencyMs: 95,
+        cost: 0.0001,
+        cumulativeCost: 0.0246,
+        latencyMs: 45,
         astHealed: false,
-        action: "Markov Sentinel: Trajectory within budget bounds ($0.075 spend vs $2.00 cap) -> COMPLETE",
+        action: "Markov Sentinel: Trajectory successfully resolved at $0.0246 gross spend (87.2% cost savings) -> COMPLETE",
       },
     ];
 
@@ -189,9 +190,9 @@ export default function LiveRunnerPage() {
       } else {
         clearInterval(interval);
         setIsRunning(false);
-        setCurrentState("HALT_TERMINAL");
+        setCurrentState("COMPLETE");
       }
-    }, 900);
+    }, speedMs);
   };
 
   const handleLaunch = async () => {
@@ -201,7 +202,15 @@ export default function LiveRunnerPage() {
     setSteps([]);
     setCurrentState("INIT_ENVIRONMENT");
 
-    // Attempt Live WebSocket Connection to sandbox-worker
+    if (runnerMode === "instant_replay") {
+      // Accelerated 15-second Instant Replay Demo (500ms steps)
+      setTimeout(() => {
+        simulateStepProgression(newTrajId, 500);
+      }, 200);
+      return;
+    }
+
+    // Live Cloud Dispatch Mode: Connect to Live WebSocket / Cloud Tasks
     try {
       const wsUrl = `ws://localhost:8080/ws/trajectories/${newTrajId}`;
       const ws = new WebSocket(wsUrl);
@@ -211,7 +220,7 @@ export default function LiveRunnerPage() {
         if (ws.readyState !== WebSocket.OPEN) {
           ws.close();
           setWsConnected(false);
-          simulateStepProgression(newTrajId);
+          simulateStepProgression(newTrajId, 1200);
         }
       }, 1500);
 
@@ -254,7 +263,7 @@ export default function LiveRunnerPage() {
             ]);
           } else if (data.type === "TRAJECTORY_FINISHED") {
             setIsRunning(false);
-            setCurrentState("HALT_TERMINAL");
+            setCurrentState("COMPLETE");
             ws.close();
           }
         } catch (e) {
@@ -265,11 +274,11 @@ export default function LiveRunnerPage() {
       ws.onerror = () => {
         clearTimeout(connectionTimeout);
         setWsConnected(false);
-        simulateStepProgression(newTrajId);
+        simulateStepProgression(newTrajId, 1200);
       };
     } catch (err) {
       setWsConnected(false);
-      simulateStepProgression(newTrajId);
+      simulateStepProgression(newTrajId, 1200);
     }
   };
 
@@ -316,7 +325,33 @@ export default function LiveRunnerPage() {
         <GlassCard className="p-6 lg:col-span-1" glow="none">
           <div className="flex items-center gap-2 mb-4">
             <Terminal className="h-5 w-5 text-[#00F0FF]" />
-            <h3 className="font-semibold text-white">Dispatch Trajectory</h3>
+            <h3 className="font-semibold text-white">Execution Mode & Dispatch</h3>
+          </div>
+
+          {/* Dual Mode Switcher: 15s Instant Replay vs Cloud Dispatch */}
+          <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-lg border border-white/10 bg-[#0A0D14] p-1 text-xs font-mono">
+            <button
+              onClick={() => setRunnerMode("instant_replay")}
+              className={`flex items-center justify-center gap-1.5 rounded-md py-2 transition ${
+                runnerMode === "instant_replay"
+                  ? "bg-[#00F0FF]/20 text-[#00F0FF] font-bold border border-[#00F0FF]/30 shadow-glass-cyan"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Zap className="h-3.5 w-3.5 text-[#00F0FF]" />
+              15s Replay Demo
+            </button>
+            <button
+              onClick={() => setRunnerMode("live_dispatch")}
+              className={`flex items-center justify-center gap-1.5 rounded-md py-2 transition ${
+                runnerMode === "live_dispatch"
+                  ? "bg-[#10B981]/20 text-[#10B981] font-bold border border-[#10B981]/30 shadow-glass-emerald"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Cpu className="h-3.5 w-3.5 text-[#10B981]" />
+              Live Cloud Task
+            </button>
           </div>
 
           <div className="space-y-4">

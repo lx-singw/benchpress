@@ -47,13 +47,16 @@ async def test_live_chaos_ast_self_healing():
 @pytest.mark.asyncio
 async def test_live_chaos_git_saga_compensating_rollback(tmp_path):
     """Verify Git Saga triggers atomic compensating rollback upon sandbox corruption."""
+    import subprocess
     worktree_dir = str(tmp_path)
-    os.system(f"git init {worktree_dir} >/dev/null 2>&1")
-    os.system(f"cd {worktree_dir} && git config user.email 'test@test.com' && git config user.name 'Test'")
+    subprocess.run(["git", "init"], cwd=worktree_dir, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=worktree_dir, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=worktree_dir, check=True)
 
     test_file = tmp_path / "core.py"
     test_file.write_text("def run(): return 42\n", encoding="utf-8")
-    os.system(f"cd {worktree_dir} && git add -A && git commit -m 'initial' >/dev/null 2>&1")
+    subprocess.run(["git", "add", "-A"], cwd=worktree_dir, check=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=worktree_dir, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     snap_1 = await GitSagaTracker.capture_snapshot(worktree_dir)
 

@@ -1,7 +1,7 @@
 """
-FinOps Budget Sentinel Package.
+Pareto Drift Sentinel and Self-Tuning Router Package.
 """
 
-from .velocity_sentinel import VelocitySentinel, SentinelEvaluationResult
+from .self_tuning_router import SelfTuningRouter, DriftEvaluationResult
 
-__all__ = ["VelocitySentinel", "SentinelEvaluationResult"]
+__all__ = ["SelfTuningRouter", "DriftEvaluationResult"]

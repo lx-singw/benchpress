@@ -98,7 +98,22 @@ export default function LiveRunnerPage() {
   const [steps, setSteps] = useState<StepRecord[]>(INITIAL_STEPS);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [currentState, setCurrentState] = useState<string>("IDLE");
+  const [highlightedTurn, setHighlightedTurn] = useState<number | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+
+  // Listen to Spoken Voice Copilot DOM sync events
+  useEffect(() => {
+    const handleDomSync = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.action === "HIGHLIGHT_TURN" && customEvent.detail.targetTurn !== undefined) {
+        setHighlightedTurn(customEvent.detail.targetTurn);
+        setTimeout(() => setHighlightedTurn(null), 6000);
+      }
+    };
+
+    window.addEventListener("benchpress:dom-sync", handleDomSync);
+    return () => window.removeEventListener("benchpress:dom-sync", handleDomSync);
+  }, []);
 
   // Cleanup WebSocket on unmount
   useEffect(() => {
@@ -432,34 +447,46 @@ export default function LiveRunnerPage() {
 
             {/* Waterfall Step List */}
             <div className="space-y-3">
-              {steps.map((step) => (
-                <div
-                  key={step.turn}
-                  className="rounded-lg border border-white/5 bg-[#121722]/60 p-3 hover:border-white/20 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-1.5 text-xs font-mono">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded bg-[#0A0D14] px-1.5 py-0.5 font-bold text-[#00F0FF]">
-                        TURN {step.turn}
-                      </span>
-                      <Badge variant="neutral" size="sm">
-                        {step.state}
-                      </Badge>
-                      {step.astHealed && (
-                        <Badge variant="amber" size="sm" dot>
-                          AST Auto-Healed
+              {steps.map((step) => {
+                const isTarget = highlightedTurn === step.turn;
+                return (
+                  <div
+                    key={step.turn}
+                    className={`rounded-lg p-3 transition-all duration-300 ${
+                      isTarget
+                        ? "border-2 border-[#EF4444] bg-[#EF4444]/15 shadow-glass-crimson animate-pulse"
+                        : "border border-white/5 bg-[#121722]/60 hover:border-white/20"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5 text-xs font-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-[#0A0D14] px-1.5 py-0.5 font-bold text-[#00F0FF]">
+                          TURN {step.turn}
+                        </span>
+                        <Badge variant={isTarget ? "crimson" : "neutral"} size="sm">
+                          {step.state}
                         </Badge>
-                      )}
+                        {isTarget && (
+                          <Badge variant="crimson" size="sm" dot>
+                            VOICE COPILOT FOCUS
+                          </Badge>
+                        )}
+                        {step.astHealed && !isTarget && (
+                          <Badge variant="amber" size="sm" dot>
+                            AST Auto-Healed
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-gray-400">
+                        <span>{step.latencyMs}ms</span>
+                        <span className="text-[#00F0FF]">{formatUsd(step.cost)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 text-gray-400">
-                      <span>{step.latencyMs}ms</span>
-                      <span className="text-[#00F0FF]">{formatUsd(step.cost)}</span>
-                    </div>
-                  </div>
 
-                  <p className="text-xs text-gray-300 font-sans">{step.action}</p>
-                </div>
-              ))}
+                    <p className="text-xs text-gray-300 font-sans">{step.action}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

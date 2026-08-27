@@ -6,7 +6,13 @@
     "build": "turbo build",
     "test": "turbo test",
     "lint": "turbo lint",
-    "clean": "turbo clean && rm -rf node_modules apps/*/node_modules packages/*/node_modules"
+    "clean": "turbo clean && rm -rf node_modules apps/*/node_modules packages/*/node_modules",
+    "cloud:deploy:dev": "bash scripts/gcp_deploy_all.sh --env dev",
+    "cloud:deploy:prod": "bash scripts/gcp_deploy_all.sh --env prod",
+    "cloud:smoke:dev": "bash scripts/gcp_smoke_test.sh --env dev",
+    "cloud:smoke:prod": "bash scripts/gcp_smoke_test.sh --env prod",
+    "cloud:teardown:dev": "bash scripts/gcp_teardown.sh --env dev",
+    "cloud:teardown:prod": "bash scripts/gcp_teardown.sh --env prod"
   },
   "devDependencies": {
     "prettier": "^3.5.0",

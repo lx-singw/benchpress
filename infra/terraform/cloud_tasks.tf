@@ -1,26 +1,20 @@
 # ==============================================================================
-# Cloud Tasks Queue Configuration for Deterministic Rate-Limited Dispatches
-# Safeguard: Protects Vertex AI quotas and prevents multi-judge concurrency spikes
+# Benchpress: Cloud Tasks Queue Configuration for Rate-Limited Dispatches
 # ==============================================================================
 
-resource "google_cloud_tasks_queue" "benchpress_trajectory_dispatch" {
-  name     = "benchpress-trajectory-dispatch"
+resource "google_cloud_tasks_queue" "trajectory_dispatch" {
+  name     = "${var.environment}-trajectory-queue"
   location = var.region
   project  = var.project_id
 
   rate_limits {
-    # Constrain dispatches to max 10 per second to protect Vertex AI TPM/RPM quotas
-    max_dispatches_per_second = 10
-
-    # Max 5 concurrent tasks dispatched simultaneously across worker instances
-    max_concurrent_dispatches = 5
-
-    # Max burst size to accommodate brief initial bursts
-    max_burst_size            = 10
+    # Rate limits: 10/s in dev to protect quota, up to 500/s in prod for load surges
+    max_dispatches_per_second = var.cloud_tasks_dispatch_rate
+    max_concurrent_dispatches = var.cloud_tasks_max_concurrent
+    max_burst_size            = var.cloud_tasks_dispatch_rate
   }
 
   retry_config {
-    # Retry up to 5 times on 429 ResourceExhausted / 503 errors
     max_attempts       = 5
     min_backoff        = "2s"
     max_backoff        = "60s"
@@ -31,4 +25,6 @@ resource "google_cloud_tasks_queue" "benchpress_trajectory_dispatch" {
   stackdriver_logging_config {
     sampling_ratio = 1.0
   }
+
+  depends_on = [google_project_service.enabled_apis]
 }

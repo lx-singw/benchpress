@@ -31,9 +31,9 @@ echo "  • Sandbox Worker Tests:"
 echo "  • Python SDK Tests:"
 (cd packages/sdk-python && (pytest -v || python -m pytest -v))
 
-echo "  • Enterprise, Safeguards, Autonomous, Live E2E & Chaos Resilience Tests:"
-pytest -v tests/enterprise/ tests/safeguards/ tests/autonomous/ tests/e2e/ tests/chaos/ || \
-python -m pytest -v tests/enterprise/ tests/safeguards/ tests/autonomous/ tests/e2e/ tests/chaos/
+echo "  • Enterprise, Safeguards, Infra, Autonomous, Live E2E & Chaos Resilience Tests:"
+pytest -v tests/infra/ tests/enterprise/ tests/safeguards/ tests/autonomous/ tests/e2e/ tests/chaos/ || \
+python -m pytest -v tests/infra/ tests/enterprise/ tests/safeguards/ tests/autonomous/ tests/e2e/ tests/chaos/
 
 echo ""
 echo "🎉 =================================================================="

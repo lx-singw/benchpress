@@ -1,0 +1,499 @@
+{
+  "gemini-2.5-pro": {
+    "model_id": "gemini-2.5-pro",
+    "model_name": "Gemini 2.5 Pro",
+    "provider": "Google",
+    "tier": "Frontier Reasoner",
+    "tasks_evaluated": 50,
+    "tasks_passed": 24,
+    "pass_rate_pct": 49.2,
+    "total_tokens_in": 6120000,
+    "total_tokens_out": 748000,
+    "total_reasoning_tokens": 1190000,
+    "total_bloat_tokens": 272000,
+    "total_cost_usd": 11.39,
+    "cpr_usd": 0.47,
+    "tbr_bloat_pct": 4.0,
+    "mean_turns": 6.8,
+    "avg_latency_sec": 51.0,
+    "ast_self_heal_pct": 88.4,
+    "turn_20_retention_pct": 85,
+    "degradation_curve": [
+      {
+        "turn": 1,
+        "accuracyRetention": 99,
+        "symbolRecall": 99,
+        "reasoningFocus": 99
+      },
+      {
+        "turn": 5,
+        "accuracyRetention": 96,
+        "symbolRecall": 96,
+        "reasoningFocus": 95
+      },
+      {
+        "turn": 10,
+        "accuracyRetention": 92,
+        "symbolRecall": 93,
+        "reasoningFocus": 91
+      },
+      {
+        "turn": 15,
+        "accuracyRetention": 88,
+        "symbolRecall": 90,
+        "reasoningFocus": 87
+      },
+      {
+        "turn": 20,
+        "accuracyRetention": 85,
+        "symbolRecall": 87,
+        "reasoningFocus": 83
+      },
+      {
+        "turn": 25,
+        "accuracyRetention": 81,
+        "symbolRecall": 84,
+        "reasoningFocus": 79
+      },
+      {
+        "turn": 30,
+        "accuracyRetention": 78,
+        "symbolRecall": 81,
+        "reasoningFocus": 75
+      }
+    ],
+    "tool_failure_distribution": {
+      "wrongLineOffsetPct": 35.0,
+      "malformedJsonPct": 25.0,
+      "hallucinatedToolPct": 15.0,
+      "bashTimeoutPct": 15.0,
+      "syntaxRegressionPct": 10.0
+    }
+  },
+  "gemini-3.5-flash": {
+    "model_id": "gemini-3.5-flash",
+    "model_name": "Gemini 3.5 Flash",
+    "provider": "Google",
+    "tier": "High-Speed Coder",
+    "tasks_evaluated": 50,
+    "tasks_passed": 15,
+    "pass_rate_pct": 31.4,
+    "total_tokens_in": 8280000,
+    "total_tokens_out": 1012000,
+    "total_reasoning_tokens": 0,
+    "total_bloat_tokens": 367950,
+    "total_cost_usd": 1.85,
+    "cpr_usd": 0.12,
+    "tbr_bloat_pct": 4.0,
+    "mean_turns": 9.2,
+    "avg_latency_sec": 69.0,
+    "ast_self_heal_pct": 54.0,
+    "turn_20_retention_pct": 64,
+    "degradation_curve": [
+      {
+        "turn": 1,
+        "accuracyRetention": 97,
+        "symbolRecall": 98,
+        "reasoningFocus": 97
+      },
+      {
+        "turn": 5,
+        "accuracyRetention": 89,
+        "symbolRecall": 91,
+        "reasoningFocus": 88
+      },
+      {
+        "turn": 10,
+        "accuracyRetention": 80,
+        "symbolRecall": 82,
+        "reasoningFocus": 77
+      },
+      {
+        "turn": 15,
+        "accuracyRetention": 71,
+        "symbolRecall": 75,
+        "reasoningFocus": 68
+      },
+      {
+        "turn": 20,
+        "accuracyRetention": 64,
+        "symbolRecall": 68,
+        "reasoningFocus": 60
+      },
+      {
+        "turn": 25,
+        "accuracyRetention": 57,
+        "symbolRecall": 62,
+        "reasoningFocus": 53
+      },
+      {
+        "turn": 30,
+        "accuracyRetention": 51,
+        "symbolRecall": 57,
+        "reasoningFocus": 46
+      }
+    ],
+    "tool_failure_distribution": {
+      "wrongLineOffsetPct": 35.0,
+      "malformedJsonPct": 25.0,
+      "hallucinatedToolPct": 15.0,
+      "bashTimeoutPct": 15.0,
+      "syntaxRegressionPct": 10.0
+    }
+  },
+  "benchpress-hybrid": {
+    "model_id": "benchpress-hybrid",
+    "model_name": "\u2605 Benchpress Hybrid (2.5 Pro + 3.5 Flash)",
+    "provider": "Benchpress",
+    "tier": "Hybrid Route",
+    "tasks_evaluated": 50,
+    "tasks_passed": 31,
+    "pass_rate_pct": 63.1,
+    "total_tokens_in": 3780000,
+    "total_tokens_out": 462000,
+    "total_reasoning_tokens": 735000,
+    "total_bloat_tokens": 25200,
+    "total_cost_usd": 1.01,
+    "cpr_usd": 0.03,
+    "tbr_bloat_pct": 0.6,
+    "mean_turns": 4.2,
+    "avg_latency_sec": 31.5,
+    "ast_self_heal_pct": 92.0,
+    "turn_20_retention_pct": 88,
+    "degradation_curve": [
+      {
+        "turn": 1,
+        "accuracyRetention": 99,
+        "symbolRecall": 99,
+        "reasoningFocus": 99
+      },
+      {
+        "turn": 5,
+        "accuracyRetention": 97,
+        "symbolRecall": 97,
+        "reasoningFocus": 96
+      },
+      {
+        "turn": 10,
+        "accuracyRetention": 94,
+        "symbolRecall": 95,
+        "reasoningFocus": 93
+      },
+      {
+        "turn": 15,
+        "accuracyRetention": 91,
+        "symbolRecall": 92,
+        "reasoningFocus": 90
+      },
+      {
+        "turn": 20,
+        "accuracyRetention": 88,
+        "symbolRecall": 90,
+        "reasoningFocus": 87
+      },
+      {
+        "turn": 25,
+        "accuracyRetention": 86,
+        "symbolRecall": 88,
+        "reasoningFocus": 84
+      },
+      {
+        "turn": 30,
+        "accuracyRetention": 83,
+        "symbolRecall": 85,
+        "reasoningFocus": 81
+      }
+    ],
+    "tool_failure_distribution": {
+      "wrongLineOffsetPct": 15.0,
+      "malformedJsonPct": 5.0,
+      "hallucinatedToolPct": 2.0,
+      "bashTimeoutPct": 5.0,
+      "syntaxRegressionPct": 5.0
+    }
+  },
+  "claude-3-7-sonnet": {
+    "model_id": "claude-3-7-sonnet",
+    "model_name": "Claude 3.7 Sonnet",
+    "provider": "Anthropic",
+    "tier": "Frontier Reasoner",
+    "tasks_evaluated": 50,
+    "tasks_passed": 31,
+    "pass_rate_pct": 62.4,
+    "total_tokens_in": 16380000,
+    "total_tokens_out": 2002000,
+    "total_reasoning_tokens": 0,
+    "total_bloat_tokens": 728000,
+    "total_cost_usd": 79.17,
+    "cpr_usd": 2.55,
+    "tbr_bloat_pct": 4.0,
+    "mean_turns": 18.2,
+    "avg_latency_sec": 136.5,
+    "ast_self_heal_pct": 54.0,
+    "turn_20_retention_pct": 78,
+    "degradation_curve": [
+      {
+        "turn": 1,
+        "accuracyRetention": 98,
+        "symbolRecall": 98,
+        "reasoningFocus": 98
+      },
+      {
+        "turn": 5,
+        "accuracyRetention": 94,
+        "symbolRecall": 95,
+        "reasoningFocus": 93
+      },
+      {
+        "turn": 10,
+        "accuracyRetention": 88,
+        "symbolRecall": 90,
+        "reasoningFocus": 87
+      },
+      {
+        "turn": 15,
+        "accuracyRetention": 83,
+        "symbolRecall": 85,
+        "reasoningFocus": 81
+      },
+      {
+        "turn": 20,
+        "accuracyRetention": 78,
+        "symbolRecall": 81,
+        "reasoningFocus": 75
+      },
+      {
+        "turn": 25,
+        "accuracyRetention": 74,
+        "symbolRecall": 77,
+        "reasoningFocus": 70
+      },
+      {
+        "turn": 30,
+        "accuracyRetention": 69,
+        "symbolRecall": 73,
+        "reasoningFocus": 66
+      }
+    ],
+    "tool_failure_distribution": {
+      "wrongLineOffsetPct": 35.0,
+      "malformedJsonPct": 25.0,
+      "hallucinatedToolPct": 15.0,
+      "bashTimeoutPct": 15.0,
+      "syntaxRegressionPct": 10.0
+    }
+  },
+  "gpt-4o": {
+    "model_id": "gpt-4o",
+    "model_name": "GPT-4o",
+    "provider": "OpenAI",
+    "tier": "Frontier Reasoner",
+    "tasks_evaluated": 50,
+    "tasks_passed": 20,
+    "pass_rate_pct": 41.2,
+    "total_tokens_in": 7560000,
+    "total_tokens_out": 924000,
+    "total_reasoning_tokens": 0,
+    "total_bloat_tokens": 336000,
+    "total_cost_usd": 28.14,
+    "cpr_usd": 1.41,
+    "tbr_bloat_pct": 4.0,
+    "mean_turns": 8.4,
+    "avg_latency_sec": 63.0,
+    "ast_self_heal_pct": 54.0,
+    "turn_20_retention_pct": 46,
+    "degradation_curve": [
+      {
+        "turn": 1,
+        "accuracyRetention": 96,
+        "symbolRecall": 96,
+        "reasoningFocus": 95
+      },
+      {
+        "turn": 5,
+        "accuracyRetention": 82,
+        "symbolRecall": 85,
+        "reasoningFocus": 80
+      },
+      {
+        "turn": 10,
+        "accuracyRetention": 68,
+        "symbolRecall": 72,
+        "reasoningFocus": 64
+      },
+      {
+        "turn": 15,
+        "accuracyRetention": 56,
+        "symbolRecall": 61,
+        "reasoningFocus": 51
+      },
+      {
+        "turn": 20,
+        "accuracyRetention": 46,
+        "symbolRecall": 52,
+        "reasoningFocus": 41
+      },
+      {
+        "turn": 25,
+        "accuracyRetention": 38,
+        "symbolRecall": 44,
+        "reasoningFocus": 33
+      },
+      {
+        "turn": 30,
+        "accuracyRetention": 31,
+        "symbolRecall": 37,
+        "reasoningFocus": 26
+      }
+    ],
+    "tool_failure_distribution": {
+      "wrongLineOffsetPct": 35.0,
+      "malformedJsonPct": 25.0,
+      "hallucinatedToolPct": 15.0,
+      "bashTimeoutPct": 15.0,
+      "syntaxRegressionPct": 10.0
+    }
+  },
+  "deepseek-r1": {
+    "model_id": "deepseek-r1",
+    "model_name": "DeepSeek-R1",
+    "provider": "DeepSeek",
+    "tier": "Deep CoT",
+    "tasks_evaluated": 50,
+    "tasks_passed": 26,
+    "pass_rate_pct": 52.4,
+    "total_tokens_in": 5580000,
+    "total_tokens_out": 682000,
+    "total_reasoning_tokens": 1085000,
+    "total_bloat_tokens": 248000,
+    "total_cost_usd": 4.56,
+    "cpr_usd": 0.18,
+    "tbr_bloat_pct": 4.0,
+    "mean_turns": 6.2,
+    "avg_latency_sec": 46.5,
+    "ast_self_heal_pct": 54.0,
+    "turn_20_retention_pct": 57,
+    "degradation_curve": [
+      {
+        "turn": 1,
+        "accuracyRetention": 97,
+        "symbolRecall": 97,
+        "reasoningFocus": 96
+      },
+      {
+        "turn": 5,
+        "accuracyRetention": 86,
+        "symbolRecall": 88,
+        "reasoningFocus": 85
+      },
+      {
+        "turn": 10,
+        "accuracyRetention": 75,
+        "symbolRecall": 78,
+        "reasoningFocus": 72
+      },
+      {
+        "turn": 15,
+        "accuracyRetention": 65,
+        "symbolRecall": 69,
+        "reasoningFocus": 61
+      },
+      {
+        "turn": 20,
+        "accuracyRetention": 57,
+        "symbolRecall": 62,
+        "reasoningFocus": 52
+      },
+      {
+        "turn": 25,
+        "accuracyRetention": 49,
+        "symbolRecall": 55,
+        "reasoningFocus": 44
+      },
+      {
+        "turn": 30,
+        "accuracyRetention": 43,
+        "symbolRecall": 48,
+        "reasoningFocus": 38
+      }
+    ],
+    "tool_failure_distribution": {
+      "wrongLineOffsetPct": 35.0,
+      "malformedJsonPct": 25.0,
+      "hallucinatedToolPct": 15.0,
+      "bashTimeoutPct": 15.0,
+      "syntaxRegressionPct": 10.0
+    }
+  },
+  "llama-3.3-70b": {
+    "model_id": "llama-3.3-70b",
+    "model_name": "Llama 3.3 70B",
+    "provider": "Meta",
+    "tier": "Open Weights",
+    "tasks_evaluated": 50,
+    "tasks_passed": 19,
+    "pass_rate_pct": 38.6,
+    "total_tokens_in": 7920000,
+    "total_tokens_out": 968000,
+    "total_reasoning_tokens": 0,
+    "total_bloat_tokens": 352000,
+    "total_cost_usd": 3.56,
+    "cpr_usd": 0.19,
+    "tbr_bloat_pct": 4.0,
+    "mean_turns": 8.8,
+    "avg_latency_sec": 66.0,
+    "ast_self_heal_pct": 54.0,
+    "turn_20_retention_pct": 52,
+    "degradation_curve": [
+      {
+        "turn": 1,
+        "accuracyRetention": 96,
+        "symbolRecall": 97,
+        "reasoningFocus": 96
+      },
+      {
+        "turn": 5,
+        "accuracyRetention": 85,
+        "symbolRecall": 87,
+        "reasoningFocus": 83
+      },
+      {
+        "turn": 10,
+        "accuracyRetention": 72,
+        "symbolRecall": 76,
+        "reasoningFocus": 69
+      },
+      {
+        "turn": 15,
+        "accuracyRetention": 61,
+        "symbolRecall": 66,
+        "reasoningFocus": 57
+      },
+      {
+        "turn": 20,
+        "accuracyRetention": 52,
+        "symbolRecall": 58,
+        "reasoningFocus": 47
+      },
+      {
+        "turn": 25,
+        "accuracyRetention": 44,
+        "symbolRecall": 50,
+        "reasoningFocus": 39
+      },
+      {
+        "turn": 30,
+        "accuracyRetention": 38,
+        "symbolRecall": 44,
+        "reasoningFocus": 33
+      }
+    ],
+    "tool_failure_distribution": {
+      "wrongLineOffsetPct": 35.0,
+      "malformedJsonPct": 25.0,
+      "hallucinatedToolPct": 15.0,
+      "bashTimeoutPct": 15.0,
+      "syntaxRegressionPct": 10.0
+    }
+  }
+}

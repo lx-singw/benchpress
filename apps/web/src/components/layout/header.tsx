@@ -42,30 +42,42 @@ export function Header() {
             </Link>
 
             {/* Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1">
               <Link
                 href="/"
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
               >
-                <Layers className="h-4 w-4 text-[#00F0FF]" />
-                Leaderboard & Pareto
+                <Layers className="h-3.5 w-3.5 text-[#00F0FF]" />
+                Leaderboard
+              </Link>
+              <Link
+                href="/models"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <Cpu className="h-3.5 w-3.5 text-[#10B981]" />
+                Models Catalog
+              </Link>
+              <Link
+                href="/compare"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                Compare ⚖️
               </Link>
               <Link
                 href="/live"
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
               >
-                <Activity className="h-4 w-4 text-[#10B981]" />
-                Live Runner
+                <Activity className="h-3.5 w-3.5 text-purple-400" />
+                Live Swarm
               </Link>
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+              <Link
+                href="/arbitrage"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
               >
-                <Terminal className="h-4 w-4 text-purple-400" />
-                SDK Docs
-              </a>
+                <Terminal className="h-3.5 w-3.5 text-cyan-400" />
+                Arbitrage
+              </Link>
             </nav>
           </div>
 

@@ -1,115 +1,167 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  Cpu,
-  DollarSign,
-  Flame,
-  GitCommit,
-  Play,
-  RotateCcw,
-  ShieldCheck,
-  Sparkles,
-  Terminal,
-  Wifi,
-  WifiOff,
-  Wrench,
-  Zap,
-} from "lucide-react";
+  AgentRole,
+  SwarmMessageEnvelope,
+  SwarmMetrics,
+  AGENT_METADATA_MAP,
+} from "@/lib/swarm-types";
+import { MOCK_SWARM_MESSAGES, INITIAL_SWARM_METRICS } from "@/lib/mock-swarm-data";
+import { TrajectoryTurnEvent, FsmState } from "@/lib/types";
+import { SwarmMetricsBanner } from "@/components/swarm/swarm-metrics-banner";
+import { AgentSwarmNodeMap } from "@/components/swarm/agent-swarm-node-map";
+import { AgentSwarmFeed } from "@/components/swarm/agent-swarm-feed";
+import { SandboxTerminalPane } from "@/components/replayer/sandbox-terminal-pane";
+import { TokenWaterfallChart } from "@/components/charts/token-waterfall-chart";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
-import { formatNumber, formatPercent, formatUsd } from "@/lib/utils";
-import { FsmState, TrajectoryStatus } from "@/lib/types";
-import { LiveTrajectoryView } from "@/components/replayer/live-trajectory-view";
+import { Activity, Wifi, WifiOff, Cpu, Terminal, Sparkles, BarChart2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface StepRecord {
-  turn: number;
-  state: FsmState | string;
-  model: string;
-  cost: number;
-  cumulativeCost: number;
-  latencyMs: number;
-  astHealed: boolean;
-  action: string;
-}
-
-const INITIAL_STEPS: StepRecord[] = [
-  {
-    turn: 1,
-    state: FsmState.INIT_ENVIRONMENT,
-    model: "gemini-2.5-pro",
-    cost: 0.005,
-    cumulativeCost: 0.005,
-    latencyMs: 340,
-    astHealed: false,
-    action: "Mounted gVisor runsc sandbox & initialized isolated git repository fixture",
-  },
-  {
-    turn: 2,
-    state: FsmState.PROMPT_PLANNER,
-    model: "gemini-2.5-pro",
-    cost: 0.038,
-    cumulativeCost: 0.043,
-    latencyMs: 1820,
-    astHealed: false,
-    action: "Planner formulated 3-phase execution plan for model ordering constraint bug",
-  },
-  {
-    turn: 3,
-    state: FsmState.VALIDATE_AST,
-    model: "gemini-2.5-flash",
-    cost: 0.012,
-    cumulativeCost: 0.055,
-    latencyMs: 650,
-    astHealed: true,
-    action: "Autonomous AST Healer auto-corrected tool schema parameter mismatch in edit_file()",
-  },
-  {
-    turn: 4,
-    state: FsmState.EXECUTE_SANDBOX,
-    model: "gemini-2.5-flash",
-    cost: 0.018,
-    cumulativeCost: 0.073,
-    latencyMs: 2400,
-    astHealed: false,
-    action: "Executed pytest in isolated gVisor sandbox container (1 failed -> 1 passed)",
-  },
-  {
-    turn: 5,
-    state: FsmState.FINOPS_SENTINEL,
-    model: "sentinel-markov-v1",
-    cost: 0.001,
-    cumulativeCost: 0.074,
-    latencyMs: 120,
-    astHealed: false,
-    action: "Markov Sentinel evaluated velocity: Projected total cost $0.21 (< $2.00 cap) -> CONTINUE",
-  },
-];
-
-export default function LiveRunnerPage() {
+export default function LiveSwarmRunnerPage() {
   const [runnerMode, setRunnerMode] = useState<"instant_replay" | "live_dispatch">("instant_replay");
-  const [modelId, setModelId] = useState<string>("hybrid-gemini-pro-flash");
-  const [taskSuite, setTaskSuite] = useState<string>("SWE_BENCH_VERIFIED");
   const [taskId, setTaskId] = useState<string>("django__django-11099");
-  const [budgetLimit, setBudgetLimit] = useState<number>(2.0);
-  const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [trajectoryId, setTrajectoryId] = useState<string>("traj-8f4b2a9c");
-  const [steps, setSteps] = useState<StepRecord[]>(INITIAL_STEPS);
+  const [taskSuite, setTaskSuite] = useState<string>("SWE_BENCH_VERIFIED");
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [currentStepIndex, setCurrentStepIndex] = useState<number>(MOCK_SWARM_MESSAGES.length);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
-  const [currentState, setCurrentState] = useState<string>("IDLE");
-  const [highlightedTurn, setHighlightedTurn] = useState<number | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const [rightPanelTab, setRightPanelTab] = useState<"feed" | "waterfall">("feed");
 
-  // Listen to Spoken Voice Copilot DOM sync events
+  // Highlighted file & line from DOM Sync
+  const [highlightedFile, setHighlightedFile] = useState<string | null>(null);
+  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Active messages subset based on playback step index
+  const activeMessages = useMemo(() => {
+    return MOCK_SWARM_MESSAGES.slice(0, currentStepIndex);
+  }, [currentStepIndex]);
+
+  const latestMessage = activeMessages.length > 0 ? activeMessages[activeMessages.length - 1] : null;
+
+  // Active agent from latest message
+  const activeAgent: AgentRole = latestMessage ? latestMessage.fromAgent : "ARCHITECT";
+
+  // Active handoff calculation
+  const activeHandoff = useMemo(() => {
+    if (!latestMessage || !latestMessage.toAgent || latestMessage.toAgent === "ALL" || latestMessage.toAgent === "DEVELOPER") {
+      return null;
+    }
+    return {
+      from: latestMessage.fromAgent,
+      to: latestMessage.toAgent as AgentRole | "SANDBOX",
+    };
+  }, [latestMessage]);
+
+  // Aggregate agent statistics
+  const agentStats = useMemo(() => {
+    const stats: Record<AgentRole, { turnsCompleted: number; tokensConsumed: number; costUsd: number }> = {
+      ARCHITECT: { turnsCompleted: 0, tokensConsumed: 0, costUsd: 0 },
+      CODER: { turnsCompleted: 0, tokensConsumed: 0, costUsd: 0 },
+      SUPERVISOR_HEALER: { turnsCompleted: 0, tokensConsumed: 0, costUsd: 0 },
+      FINOPS_SENTINEL: { turnsCompleted: 0, tokensConsumed: 0, costUsd: 0 },
+      VOICE_COPILOT: { turnsCompleted: 0, tokensConsumed: 0, costUsd: 0 },
+      CICD_DAEMON: { turnsCompleted: 0, tokensConsumed: 0, costUsd: 0 },
+    };
+
+    activeMessages.forEach((msg) => {
+      if (msg.fromAgent in stats) {
+        stats[msg.fromAgent].turnsCompleted += 1;
+        stats[msg.fromAgent].tokensConsumed += msg.tokensIncurred;
+        stats[msg.fromAgent].costUsd += msg.tokenCostUsd;
+      }
+    });
+
+    return stats;
+  }, [activeMessages]);
+
+  // Dynamic Swarm Metrics
+  const metrics: SwarmMetrics = useMemo(() => {
+    const totalCost = activeMessages.reduce((acc, m) => acc + m.tokenCostUsd, 0);
+    const selfHealCount = activeMessages.filter((m) => m.isSelfHealingEvent).length;
+    const isComplete = currentStepIndex >= MOCK_SWARM_MESSAGES.length;
+
+    return {
+      totalTurns: activeMessages.length,
+      totalCostUsd: totalCost,
+      cprUsd: totalCost,
+      tokenVelocityKps: 1.42,
+      activeAgent,
+      selfHealingCount: selfHealCount,
+      passAt1: isComplete,
+      bloatRatioPct: 4.2,
+      status: isComplete ? "COMPLETE" : isPlaying ? "RUNNING" : "PAUSED",
+    };
+  }, [activeMessages, activeAgent, currentStepIndex, isPlaying]);
+
+  // Derived Trajectory Turn Events for Terminal & Waterfall
+  const trajectoryTurns: TrajectoryTurnEvent[] = useMemo(() => {
+    return activeMessages.map((msg, idx) => ({
+      turn_index: idx + 1,
+      state: msg.actionType === "PLAN" ? FsmState.REASONING_PLANNER : msg.actionType === "HEAL_PATCH" ? FsmState.SUPERVISOR_AST_HEAL : FsmState.SANDBOX_EXECUTION,
+      model_id: AGENT_METADATA_MAP[msg.fromAgent]?.model || "gemini-3.5-flash",
+      prompt_tokens: Math.round(msg.tokensIncurred * 0.7),
+      completion_tokens: Math.round(msg.tokensIncurred * 0.3),
+      reasoning_tokens: msg.fromAgent === "SUPERVISOR_HEALER" || msg.fromAgent === "ARCHITECT" ? 350 : 0,
+      turn_cost_usd: msg.tokenCostUsd,
+      cumulative_cost_usd: activeMessages.slice(0, idx + 1).reduce((acc, m) => acc + m.tokenCostUsd, 0),
+      latency_ms: 320 + idx * 80,
+      tool_call_name: msg.actionType === "TOOL_CALL" ? "runPytest" : msg.actionType === "HEAL_PATCH" ? "editHunk" : undefined,
+      tool_call_payload: msg.codeDiff ? { path: msg.codeDiff.path, target_content: msg.codeDiff.target_content, replacement_content: msg.codeDiff.replacement_content } : undefined,
+      ast_healed: !!msg.isSelfHealingEvent,
+      sandbox_exit_code: 0,
+      sandbox_stdout: msg.content,
+      git_tree_hash: "99a812f88b",
+      timestamp: msg.timestamp,
+    }));
+  }, [activeMessages]);
+
+  const currentTurn = trajectoryTurns.length > 0 ? trajectoryTurns[trajectoryTurns.length - 1] : null;
+
+  // Playback timer loop for instant replay
+  useEffect(() => {
+    if (runnerMode === "instant_replay" && isPlaying) {
+      const stepIntervalMs = Math.max(250, 1200 / playbackSpeed);
+
+      timerRef.current = setInterval(() => {
+        setCurrentStepIndex((prev) => {
+          if (prev >= MOCK_SWARM_MESSAGES.length) {
+            setIsPlaying(false);
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, stepIntervalMs);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [runnerMode, isPlaying, playbackSpeed]);
+
+  // Listen to Spoken Voice Copilot & Swarm Feed DOM Sync events
   useEffect(() => {
     const handleDomSync = (e: Event) => {
       const customEvent = e as CustomEvent;
-      if (customEvent.detail?.action === "HIGHLIGHT_TURN" && customEvent.detail.targetTurn !== undefined) {
-        setHighlightedTurn(customEvent.detail.targetTurn);
-        setTimeout(() => setHighlightedTurn(null), 6000);
+      if (customEvent.detail) {
+        if (customEvent.detail.targetFile) {
+          setHighlightedFile(customEvent.detail.targetFile);
+        }
+        if (customEvent.detail.targetLine !== undefined) {
+          setHighlightedLine(customEvent.detail.targetLine);
+        }
+        // Auto reset highlight after 5 seconds
+        setTimeout(() => {
+          setHighlightedFile(null);
+          setHighlightedLine(null);
+        }, 5000);
       }
     };
 
@@ -117,451 +169,177 @@ export default function LiveRunnerPage() {
     return () => window.removeEventListener("benchpress:dom-sync", handleDomSync);
   }, []);
 
-  // Cleanup WebSocket on unmount
-  useEffect(() => {
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
-
-  const simulateStepProgression = (newTrajId: string, speedMs: number = 500) => {
-    const simulatedStream: StepRecord[] = [
-      {
-        turn: 1,
-        state: FsmState.INIT_ENVIRONMENT,
-        model: "gemini-2.5-pro",
-        cost: 0.005,
-        cumulativeCost: 0.005,
-        latencyMs: 310,
-        astHealed: false,
-        action: `Provisioned AMD SEV-SNP confidential gVisor sandbox for ${taskId}`,
-      },
-      {
-        turn: 2,
-        state: FsmState.PROMPT_PLANNER,
-        model: "gemini-2.5-pro",
-        cost: 0.018,
-        cumulativeCost: 0.023,
-        latencyMs: 1250,
-        astHealed: false,
-        action: "High-order Reasoning Planner generated patch hypothesis: Replace regex anchor with \\A...\\Z",
-      },
-      {
-        turn: 3,
-        state: FsmState.VALIDATE_AST,
-        model: "gemini-2.5-flash",
-        cost: 0.001,
-        cumulativeCost: 0.024,
-        latencyMs: 142,
-        astHealed: true,
-        action: "Supervisor AST Healer intercepted non-standard tool parameter 'lines' -> mapped to 'editHunk'",
-      },
-      {
-        turn: 4,
-        state: FsmState.EXECUTE_SANDBOX,
-        model: "gemini-2.5-flash",
-        cost: 0.0005,
-        cumulativeCost: 0.0245,
-        latencyMs: 420,
-        astHealed: false,
-        action: "Executed pytest in isolated gVisor sandbox: test_ascii_username_validator PASSED (0 regressions)",
-      },
-      {
-        turn: 5,
-        state: FsmState.FINOPS_SENTINEL,
-        model: "sentinel-markov-v1",
-        cost: 0.0001,
-        cumulativeCost: 0.0246,
-        latencyMs: 45,
-        astHealed: false,
-        action: "Markov Sentinel: Trajectory successfully resolved at $0.0246 gross spend (87.2% cost savings) -> COMPLETE",
-      },
-    ];
-
-    let stepIdx = 0;
-    const interval = setInterval(() => {
-      if (stepIdx < simulatedStream.length) {
-        const nextStep = simulatedStream[stepIdx];
-        setCurrentState(nextStep.state);
-        setSteps((prev) => [...prev, nextStep]);
-        stepIdx++;
-      } else {
-        clearInterval(interval);
-        setIsRunning(false);
-        setCurrentState("COMPLETE");
-      }
-    }, speedMs);
-  };
-
-  const handleLaunch = async () => {
-    setIsRunning(true);
-    const newTrajId = `traj-${Math.random().toString(36).substring(2, 10)}`;
-    setTrajectoryId(newTrajId);
-    setSteps([]);
-    setCurrentState("INIT_ENVIRONMENT");
-
-    if (runnerMode === "instant_replay") {
-      // Accelerated 15-second Instant Replay Demo (500ms steps)
-      setTimeout(() => {
-        simulateStepProgression(newTrajId, 500);
-      }, 200);
-      return;
-    }
-
-    // Live Cloud Dispatch Mode: Connect to Live WebSocket / Cloud Tasks
-    try {
-      const wsUrl = `ws://localhost:8080/ws/trajectories/${newTrajId}`;
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      const connectionTimeout = setTimeout(() => {
-        if (ws.readyState !== WebSocket.OPEN) {
-          ws.close();
-          setWsConnected(false);
-          simulateStepProgression(newTrajId, 1200);
-        }
-      }, 1500);
-
-      ws.onopen = () => {
-        clearTimeout(connectionTimeout);
-        setWsConnected(true);
-        // Post execution request to worker
-        fetch("http://localhost:8080/execute-task", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            trajectory_id: newTrajId,
-            task_suite: taskSuite,
-            task_id: taskId,
-            model_id: modelId,
-            budget_limit_usd: budgetLimit,
-          }),
-        }).catch(() => {});
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "STATE_CHANGE") {
-            setCurrentState(data.state);
-          } else if (data.type === "TURN_COMPLETED" && data.turn) {
-            const t = data.turn;
-            setSteps((prev) => [
-              ...prev,
-              {
-                turn: t.turn_index,
-                state: t.state,
-                model: t.model_id,
-                cost: t.turn_cost_usd,
-                cumulativeCost: prev.reduce((acc, s) => acc + s.cost, 0) + t.turn_cost_usd,
-                latencyMs: t.latency_ms,
-                astHealed: t.ast_healed,
-                action: t.sandbox_output || `Executed state ${t.state} in sandbox`,
-              },
-            ]);
-          } else if (data.type === "TRAJECTORY_FINISHED") {
-            setIsRunning(false);
-            setCurrentState("COMPLETE");
-            ws.close();
-          }
-        } catch (e) {
-          console.error("Failed to parse WebSocket packet", e);
-        }
-      };
-
-      ws.onerror = () => {
-        clearTimeout(connectionTimeout);
-        setWsConnected(false);
-        simulateStepProgression(newTrajId, 1200);
-      };
-    } catch (err) {
-      setWsConnected(false);
-      simulateStepProgression(newTrajId, 1200);
+  const handleTogglePlay = () => {
+    if (currentStepIndex >= MOCK_SWARM_MESSAGES.length) {
+      setCurrentStepIndex(1);
+      setIsPlaying(true);
+    } else {
+      setIsPlaying((prev) => !prev);
     }
   };
 
-  const totalCost = steps.length > 0 ? steps[steps.length - 1].cumulativeCost : 0;
+  const handleReset = () => {
+    setCurrentStepIndex(1);
+    setIsPlaying(false);
+  };
+
+  const handleSelectMessage = (msg: SwarmMessageEnvelope) => {
+    setSelectedMessageId(msg.id);
+    if (msg.targetFile) {
+      setHighlightedFile(msg.targetFile);
+    }
+    if (msg.targetLine) {
+      setHighlightedLine(msg.targetLine);
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       {/* Top Header */}
-      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant="emerald" dot size="sm">
-              REAL-TIME FSM RUNNER
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <Badge variant="cyan" dot size="sm">
+              MULTI-AGENT SWARM RUNTIME
             </Badge>
-            <span className="text-xs text-gray-500 font-mono">13-State Deterministic Engine</span>
-            {wsConnected ? (
-              <Badge variant="cyan" size="sm">
+            <span className="text-xs text-zinc-500 font-mono">
+              6 Specialized Cooperating Agents
+            </span>
+            {runnerMode === "live_dispatch" && wsConnected ? (
+              <Badge variant="emerald" size="sm">
                 <Wifi className="h-3 w-3 inline mr-1" /> WebSocket Live
               </Badge>
             ) : (
               <Badge variant="neutral" size="sm">
-                <WifiOff className="h-3 w-3 inline mr-1" /> Replay Engine
+                <WifiOff className="h-3 w-3 inline mr-1" /> Deterministic Replay
               </Badge>
             )}
           </div>
-          <h1 className="text-2xl font-bold text-white sm:text-3xl">
-            Live Trajectory Execution & Token Waterfall
+          <h1 className="text-2xl font-extrabold text-white sm:text-3xl font-mono tracking-tight flex items-center gap-2.5">
+            Interactive Multi-Agent Swarm Visualizer
+            <Sparkles className="w-6 h-6 text-cyan-400" />
           </h1>
-          <p className="mt-1 text-sm text-gray-400">
-            Inspect autonomous agent execution steps, AST self-healing intercepts, and FinOps budget guardrails in real time.
+          <p className="mt-1 text-sm text-zinc-400 font-sans">
+            Real-time visualization of 6 specialized agents debating, delegating code edits, healing AST schema errors, and enforcing FinOps budget ceilings.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Badge variant="cyan" size="md">
+        <div className="flex items-center gap-2">
+          <Badge variant="emerald" size="md">
             gVisor Sandbox: HEALTHY
+          </Badge>
+          <Badge variant="cyan" size="md">
+            BigQuery Write: STREAMING
           </Badge>
         </div>
       </div>
 
-      {/* Grid: Trajectory Dispatcher Form + Live Stats */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* Trajectory Config Form */}
-        <GlassCard className="p-6 lg:col-span-1" glow="none">
-          <div className="flex items-center gap-2 mb-4">
-            <Terminal className="h-5 w-5 text-[#00F0FF]" />
-            <h3 className="font-semibold text-white">Execution Mode & Dispatch</h3>
+      {/* 1. Top Section: Swarm Metrics & Playback Controls Banner */}
+      <SwarmMetricsBanner
+        metrics={metrics}
+        taskId={taskId}
+        taskSuite={taskSuite}
+        runnerMode={runnerMode}
+        onChangeRunnerMode={(mode) => {
+          setRunnerMode(mode);
+          if (mode === "instant_replay") {
+            setCurrentStepIndex(1);
+            setIsPlaying(true);
+          }
+        }}
+        isPlaying={isPlaying}
+        onTogglePlay={handleTogglePlay}
+        onReset={handleReset}
+        playbackSpeed={playbackSpeed}
+        onChangeSpeed={setPlaybackSpeed}
+      />
+
+      {/* 2. Middle Section: Interactive Glowing SVG Node Topology Map */}
+      <AgentSwarmNodeMap
+        activeAgent={activeAgent}
+        activeHandoff={activeHandoff}
+        agentStats={agentStats}
+        onSelectAgent={(role) => {
+          // Filter or highlight that agent
+        }}
+      />
+
+      {/* 3. Bottom Section: Split-View Virtual Sandbox Terminal (Left) vs Swarm Feed & Token Waterfall (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column (50%): Virtual Sandbox Terminal */}
+        <div className="lg:col-span-6 space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2 text-xs font-mono text-zinc-300 font-semibold uppercase">
+              <Terminal className="h-4 w-4 text-[#00F0FF]" />
+              Isolated Execution Sandbox (gVisor)
+            </div>
+            <span className="text-[11px] font-mono text-zinc-500">
+              Turn {currentTurn?.turn_index || 1} / {MOCK_SWARM_MESSAGES.length}
+            </span>
           </div>
 
-          {/* Dual Mode Switcher: 15s Instant Replay vs Cloud Dispatch */}
-          <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-lg border border-white/10 bg-[#0A0D14] p-1 text-xs font-mono">
-            <button
-              onClick={() => setRunnerMode("instant_replay")}
-              className={`flex items-center justify-center gap-1.5 rounded-md py-2 transition ${
-                runnerMode === "instant_replay"
-                  ? "bg-[#00F0FF]/20 text-[#00F0FF] font-bold border border-[#00F0FF]/30 shadow-glass-cyan"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              <Zap className="h-3.5 w-3.5 text-[#00F0FF]" />
-              15s Replay Demo
-            </button>
-            <button
-              onClick={() => setRunnerMode("live_dispatch")}
-              className={`flex items-center justify-center gap-1.5 rounded-md py-2 transition ${
-                runnerMode === "live_dispatch"
-                  ? "bg-[#10B981]/20 text-[#10B981] font-bold border border-[#10B981]/30 shadow-glass-emerald"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              <Cpu className="h-3.5 w-3.5 text-[#10B981]" />
-              Live Cloud Task
-            </button>
-          </div>
+          <SandboxTerminalPane
+            currentTurn={currentTurn}
+            highlightedFile={highlightedFile}
+            highlightedLine={highlightedLine}
+            activeTool={latestMessage?.actionType === "TOOL_CALL" ? "runPytest" : latestMessage?.codeDiff ? "editHunk" : null}
+          />
+        </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-mono text-gray-400 mb-1.5 uppercase">
-                Model Router Target
-              </label>
-              <select
-                value={modelId}
-                onChange={(e) => setModelId(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-[#0A0D14] px-3 py-2 text-xs font-mono text-white focus:border-[#00F0FF] focus:outline-none"
+        {/* Right Column (50%): Agent Swarm Communications Feed & Token Waterfall */}
+        <div className="lg:col-span-6 space-y-3">
+          {/* Tabs header */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-[#0A0D14] p-0.5 text-xs font-mono">
+              <button
+                onClick={() => setRightPanelTab("feed")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1 rounded-md transition font-semibold",
+                  rightPanelTab === "feed"
+                    ? "bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/30 shadow-glass-cyan"
+                    : "text-zinc-400 hover:text-white"
+                )}
               >
-                <option value="gemini-2.5-pro">Gemini 2.5 Pro (Planner / Complex Coder)</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast Execution)</option>
-                <option value="claude-3-7-sonnet">Claude 3.7 Sonnet (Thinking)</option>
-                <option value="o3-mini">o3-mini (High Reasoning)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-mono text-gray-400 mb-1.5 uppercase">
-                Benchmark Task Suite
-              </label>
-              <select
-                value={taskSuite}
-                onChange={(e) => setTaskSuite(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-[#0A0D14] px-3 py-2 text-xs font-mono text-white focus:border-[#00F0FF] focus:outline-none"
+                <Activity className="h-3 w-3 text-[#00F0FF]" />
+                Swarm Feed ({activeMessages.length})
+              </button>
+              <button
+                onClick={() => setRightPanelTab("waterfall")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1 rounded-md transition font-semibold",
+                  rightPanelTab === "waterfall"
+                    ? "bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/30 shadow-glass-emerald"
+                    : "text-zinc-400 hover:text-white"
+                )}
               >
-                <option value="SWE_BENCH_VERIFIED">SWE-bench Verified (Python Bugs)</option>
-                <option value="HUMANEVAL_XL">HumanEval-XL (Multi-Lingual)</option>
-                <option value="CYBENCH">Cybench (Cybersecurity CTFs)</option>
-                <option value="GAIA">GAIA (Multimodal General Assistant)</option>
-              </select>
+                <BarChart2 className="h-3 w-3 text-[#10B981]" />
+                Token Burn Waterfall
+              </button>
             </div>
 
-            <div>
-              <label className="block text-xs font-mono text-gray-400 mb-1.5 uppercase">
-                Task ID / Fixture
-              </label>
-              <input
-                type="text"
-                value={taskId}
-                onChange={(e) => setTaskId(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-[#0A0D14] px-3 py-2 text-xs font-mono text-white focus:border-[#00F0FF] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between text-xs font-mono text-gray-400 mb-1.5">
-                <span className="uppercase">FinOps Budget Cap</span>
-                <span className="text-[#00F0FF] font-bold">{formatUsd(budgetLimit)}</span>
-              </div>
-              <input
-                type="range"
-                min="0.25"
-                max="5.00"
-                step="0.25"
-                value={budgetLimit}
-                onChange={(e) => setBudgetLimit(parseFloat(e.target.value))}
-                className="w-full accent-[#00F0FF]"
-              />
-            </div>
-
-            <button
-              onClick={handleLaunch}
-              disabled={isRunning}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#00F0FF] to-[#10B981] py-2.5 text-xs font-semibold uppercase tracking-wider text-[#0A0D14] hover:opacity-95 disabled:opacity-50 transition-all shadow-glass-cyan"
-            >
-              {isRunning ? (
-                <>
-                  <RotateCcw className="h-4 w-4 animate-spin" />
-                  Streaming Trajectory...
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4" />
-                  Enqueue Trajectory Task
-                </>
-              )}
-            </button>
+            <span className="text-[11px] font-mono text-zinc-500">
+              1-Click Code Diff Sync
+            </span>
           </div>
 
-          <div className="mt-6 rounded-lg border border-white/5 bg-[#0A0D14]/60 p-3 text-[11px] font-mono text-gray-400 space-y-1">
-            <div className="flex justify-between">
-              <span>Current FSM State:</span>
-              <span className="text-[#00F0FF] font-bold">{currentState}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Isolation Engine:</span>
-              <span className="text-[#10B981]">gVisor runsc</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Telemetry Sink:</span>
-              <span className="text-[#00F0FF]">BigQuery Storage Write API</span>
-            </div>
-          </div>
-        </GlassCard>
-
-        {/* Live Waterfall & Timeline (2 Cols on Desktop) */}
-        <GlassCard className="p-6 lg:col-span-2 flex flex-col justify-between" glow="none">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-[#10B981]" />
-                <h3 className="font-semibold text-white">Trajectory Waterfall & Event Timeline</h3>
-              </div>
-              <Badge variant="cyan" size="sm">
-                Active: {trajectoryId}
-              </Badge>
-            </div>
-
-            {/* Trajectory Header Summary */}
-            <div className="mb-6 grid grid-cols-3 gap-3 rounded-lg border border-white/10 bg-[#0A0D14]/80 p-3 text-xs font-mono">
-              <div>
-                <div className="text-gray-500 uppercase text-[10px]">Accumulated Cost</div>
-                <div className="text-base font-bold text-[#00F0FF]">{formatUsd(totalCost)}</div>
-              </div>
-              <div>
-                <div className="text-gray-500 uppercase text-[10px]">Budget Utilization</div>
-                <div className="text-base font-bold text-[#10B981]">
-                  {formatPercent((totalCost / budgetLimit) * 100)}
-                </div>
-              </div>
-              <div>
-                <div className="text-gray-500 uppercase text-[10px]">Completed Turns</div>
-                <div className="text-base font-bold text-white">{steps.length} / 20</div>
+          {rightPanelTab === "feed" ? (
+            <AgentSwarmFeed
+              messages={activeMessages}
+              selectedMessageId={selectedMessageId}
+              onSelectMessage={handleSelectMessage}
+            />
+          ) : (
+            <div className="h-[580px] rounded-xl border border-white/10 bg-[#0A0D14]/90 p-4 backdrop-blur-2xl shadow-2xl flex flex-col justify-between">
+              <TokenWaterfallChart turns={trajectoryTurns} />
+              <div className="text-[11px] font-mono text-zinc-400 border-t border-white/10 pt-3 flex items-center justify-between">
+                <span>Total Accumulated Tokens:</span>
+                <span className="text-[#00F0FF] font-bold">
+                  {trajectoryTurns.reduce((acc, t) => acc + t.prompt_tokens + t.completion_tokens, 0).toLocaleString()} tokens
+                </span>
               </div>
             </div>
-
-            {/* Waterfall Step List */}
-            <div className="space-y-3">
-              {steps.map((step) => {
-                const isTarget = highlightedTurn === step.turn;
-                return (
-                  <div
-                    key={step.turn}
-                    className={`rounded-lg p-3 transition-all duration-300 ${
-                      isTarget
-                        ? "border-2 border-[#EF4444] bg-[#EF4444]/15 shadow-glass-crimson animate-pulse"
-                        : "border border-white/5 bg-[#121722]/60 hover:border-white/20"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5 text-xs font-mono">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded bg-[#0A0D14] px-1.5 py-0.5 font-bold text-[#00F0FF]">
-                          TURN {step.turn}
-                        </span>
-                        <Badge variant={isTarget ? "crimson" : "neutral"} size="sm">
-                          {step.state}
-                        </Badge>
-                        {isTarget && (
-                          <Badge variant="crimson" size="sm" dot>
-                            VOICE COPILOT FOCUS
-                          </Badge>
-                        )}
-                        {step.astHealed && !isTarget && (
-                          <Badge variant="amber" size="sm" dot>
-                            AST Auto-Healed
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-gray-400">
-                        <span>{step.latencyMs}ms</span>
-                        <span className="text-[#00F0FF]">{formatUsd(step.cost)}</span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-gray-300 font-sans">{step.action}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4 text-xs font-mono text-gray-400">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-[#10B981]" />
-              <span>FinOps Velocity Guardrail: Active</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <GitCommit className="h-4 w-4 text-purple-400" />
-              <span>Git Saga Snapshots: Active</span>
-            </div>
-          </div>
-        </GlassCard>
-      </div>
-
-      {/* Split-View Virtual Terminal & Token Burn Waterfall */}
-      <div className="mt-8">
-        <LiveTrajectoryView
-          turns={steps.map((s) => ({
-            turn_index: s.turn,
-            state: s.state,
-            model_id: s.model,
-            prompt_tokens: Math.round(s.cost * 80000),
-            completion_tokens: Math.round(s.cost * 20000),
-            reasoning_tokens: Math.round(s.cost * 10000),
-            turn_cost_usd: s.cost,
-            cumulative_cost_usd: s.cumulativeCost,
-            latency_ms: s.latencyMs,
-            tool_call_name: s.astHealed ? "editHunk" : s.turn === 1 ? "readFile" : "runPytest",
-            tool_call_payload: s.astHealed
-              ? { path: "django/core/validators.py", target_content: "^[\\w.@+-]+$", replacement_content: "\\A[\\w.@+-]+\\Z" }
-              : { command: "pytest tests/test_validators.py" },
-            ast_healed: s.astHealed,
-            sandbox_exit_code: 0,
-            sandbox_stdout: s.action,
-            timestamp: new Date().toISOString(),
-          }))}
-        />
+          )}
+        </div>
       </div>
     </div>
   );

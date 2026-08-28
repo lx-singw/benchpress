@@ -108,7 +108,7 @@ flowchart TB
 
 ## 📑 Complete 12-Folder Master Documentation Taxonomy
 
-The complete documentation suite comprises **62 production-grade technical specifications** organized into 12 core domains:
+The complete documentation suite comprises **64 production-grade technical specifications** organized into 12 core domains:
 
 | Domain | Document Path | Category & Core Topics | Target Hackathon Track |
 | :--- | :--- | :--- | :--- |
@@ -134,6 +134,7 @@ The complete documentation suite comprises **62 production-grade technical speci
 | | [**`02-design-system-and-tokens.md`**](./design/02-design-system-and-tokens.md) | Obsidian Dark Glassmorphism, Tailwind Tokens & Micro-Animations | 🎨 **Best Multimodal UX** ($5k) |
 | | [**`03-user-journeys-and-wireframes.md`**](./design/03-user-journeys-and-wireframes.md) | Persona Journey Maps & 4 Complete ASCII Wireframes | 🎨 **Best Multimodal UX** ($5k) |
 | | [**`04-multimodal-interaction-flow.md`**](./design/04-multimodal-interaction-flow.md) | Voice-to-Visual State Machine & Sub-200ms WebRTC Protocol | 🎨 **Best Multimodal UX** ($5k) |
+| | [**`05-model-profiles-and-comparison-ux.md`**](./design/05-model-profiles-and-comparison-ux.md) | Model Profiles (`/models/[id]`), Compare (`/compare`) & Inspector Wireframes | 🎨 **Best Multimodal UX** ($5k) |
 | **3. Governance** | [**`01-enterprise-security-and-sandboxing.md`**](./governance/01-enterprise-security-and-sandboxing.md) | gVisor Container Kernel Virtualization & Egress Control | 🛡️ **The Fortified Enterprise Fleet** |
 | | [**`02-data-privacy-and-pii-masking.md`**](./governance/02-data-privacy-and-pii-masking.md) | Real-Time Telemetry Sanitization, DLP API & PII Scrubbing | 🛡️ **The Fortified Enterprise Fleet** |
 | | [**`03-compliance-soc2-gdpr-iso.md`**](./governance/03-compliance-soc2-gdpr-iso.md) | SOC 2 Type II Controls, GDPR Article 17 & CMEK Keys | 🛡️ **The Fortified Enterprise Fleet** |
@@ -142,6 +143,7 @@ The complete documentation suite comprises **62 production-grade technical speci
 | **4. Evals & Science** | [**`01-benchmark-dataset-catalog.md`**](./evals/01-benchmark-dataset-catalog.md) | 5-Tier Complexity Stratification across 900+ Tasks | Benchmark Scientific Rigor |
 | | [**`02-task-schema-and-fixtures.md`**](./evals/02-task-schema-and-fixtures.md) | Canonical JSON Task Schema & Pytest Assertion Fixtures | Benchmark Scientific Rigor |
 | | [**`03-anti-contamination-and-canaries.md`**](./evals/03-anti-contamination-and-canaries.md) | Canary GUIDs & Dynamic Synthetic AST Mutation Engines | Benchmark Scientific Rigor |
+| | [**`04-multi-model-continuous-harvester-and-deep-profiles.md`**](./evals/04-multi-model-continuous-harvester-and-deep-profiles.md) | 15-Model Continuous Harvester Fleet & 6 Deep Multi-Turn Dimensions | Benchmark Scientific Rigor |
 | **5. Research** | [**`01-cost-per-resolution-whitepaper.md`**](./research/01-cost-per-resolution-whitepaper.md) | Formal Research Paper on Cost Per Resolution (CPR) | Thought Leadership |
 | | [**`02-hybrid-routing-pareto-study.md`**](./research/02-hybrid-routing-pareto-study.md) | Empirical Pareto Study Proving 85.2% Cost Reduction | Thought Leadership |
 | | [**`03-trajectory-bloat-and-context-rot.md`**](./research/03-trajectory-bloat-and-context-rot.md) | Empirical Analysis on Multi-Turn Token Waste & Context Cliffs | Thought Leadership |

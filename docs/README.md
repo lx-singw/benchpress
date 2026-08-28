@@ -108,7 +108,7 @@ flowchart TB
 
 ## 📑 Complete 12-Folder Master Documentation Taxonomy
 
-The complete documentation suite comprises **61 production-grade technical specifications** organized into 12 core domains:
+The complete documentation suite comprises **62 production-grade technical specifications** organized into 12 core domains:
 
 | Domain | Document Path | Category & Core Topics | Target Hackathon Track |
 | :--- | :--- | :--- | :--- |
@@ -145,6 +145,7 @@ The complete documentation suite comprises **61 production-grade technical speci
 | **5. Research** | [**`01-cost-per-resolution-whitepaper.md`**](./research/01-cost-per-resolution-whitepaper.md) | Formal Research Paper on Cost Per Resolution (CPR) | Thought Leadership |
 | | [**`02-hybrid-routing-pareto-study.md`**](./research/02-hybrid-routing-pareto-study.md) | Empirical Pareto Study Proving 85.2% Cost Reduction | Thought Leadership |
 | | [**`03-trajectory-bloat-and-context-rot.md`**](./research/03-trajectory-bloat-and-context-rot.md) | Empirical Analysis on Multi-Turn Token Waste & Context Cliffs | Thought Leadership |
+| | [**`04-what-benchpress-really-does-and-core-thesis.md`**](./research/04-what-benchpress-really-does-and-core-thesis.md) | Unmasking the Token Price Lie & The 3-Engine Architecture | Thought Leadership & Thesis |
 | **6. Telemetry** | [**`01-opentelemetry-agent-standard.md`**](./telemetry/01-opentelemetry-agent-standard.md) | OpenTelemetry GenAI & Agent Semantic Conventions | Observability & FinOps |
 | | [**`02-finops-bigquery-sql-cookbook.md`**](./telemetry/02-finops-bigquery-sql-cookbook.md) | 10 Production FinOps SQL Queries for Token & Cost Optimization | Observability & FinOps |
 | | [**`03-cloud-monitoring-and-alerts.md`**](./telemetry/03-cloud-monitoring-and-alerts.md) | Google Cloud Monitoring Dashboards, SLOs & Alerting Policies | Observability & FinOps |

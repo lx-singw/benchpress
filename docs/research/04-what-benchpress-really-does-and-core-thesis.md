@@ -1,12 +1,29 @@
 # What Benchpress Really Does: Unmasking the "Token Price Lie" & The 3-Engine Architecture
 
 > **Document ID:** `BP-RES-2026-004`  
-> **Status:** Approved / Production  
+> **Status:** Historical research narrative; superseded where it conflicts with the authoritative thesis
 > **Target Audience:** Systems Architects, Enterprise FinOps Leaders, Hackathon Judges & Venture Capitalists
+
+> **Current disposition (2026-08-29):** The exact savings, quality, latency, scale, isolation, and multimodal claims below are unverified prototype/fixture statements unless linked to retained evidence. They are not submission claims. The current source of truth is the [authoritative submission plan](../hackathon/00-authoritative-submission-plan.md), [evaluation methodology](../evals/04-multi-model-continuous-harvester-and-deep-profiles.md), and [implementation status](../00-implementation-status.md).
 
 ---
 
-## 1. Executive Summary: The "Bloomberg Terminal + Smart Router" for AI Agents
+## 0. Current authoritative core thesis
+
+> **Benchpress autonomously detects AI model, reasoning, capability, and pricing changes; designs the smallest experiment needed to compare them with a team’s current configuration; rejects candidates that fail real workflows; and publishes a verifiable `STAY`, `TEST MORE`, or `SWITCH` decision—with contained canary promotion and rollback before engineering teams risk production quality or spend.**
+
+This combines—not replaces—the strongest parts of the product:
+
+- **Autonomous evidence production:** detect change, design a bounded experiment, execute, verify, reject or abstain, canary, promote or roll back.
+- **Free evidence publication:** publish provider facts, measured cohorts, methodology, recommendations, receipts, and replay on the Benchpress web.
+- **Decision-time delivery:** surface the relevant published or private evidence when a user, IDE, SDK, gateway, or policy owner is considering adoption.
+- **Future policy depth:** after the single-configuration core is proven, evaluate complete phase-aware planner/executor/reviewer policies with all handoff and failure economics.
+
+The public decision vocabulary is `STAY`, `TEST MORE`, or `SWITCH`. A non-switch is valuable evidence, and every terminal outcome is published.
+
+---
+
+## 1. Historical executive summary: the "Bloomberg Terminal + Smart Router" concept
 
 At its core, **Benchpress is the definitive economic intelligence network and dynamic model routing platform for autonomous AI agents.**
 

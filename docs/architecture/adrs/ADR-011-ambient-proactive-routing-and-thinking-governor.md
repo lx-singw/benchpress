@@ -1,6 +1,8 @@
 # ADR-011: Ambient Proactive Routing & Adaptive Thinking Budget Governance
 
-> **Status:** Approved / Accepted  
+> **Current disposition (2026-08-28): Proposed; not accepted as implemented.** The intended near-term behavior begins after an explicit user/system event and recommends configurations from measured cohorts. Passive monitoring, exact token knees, and stated savings require validation. See the [authoritative roadmap](../../planning/01-product-roadmap-and-phases.md) and [implementation status](../../00-implementation-status.md).
+
+> **Status:** Proposed / Validation required
 > **Date:** 2026-08-28  
 > **Authors:** Benchpress Systems Architecture Team  
 > **Deciders:** Principal AI Architect, Lead FinOps Engineer, Multimodal UX Lead

@@ -1,8 +1,10 @@
 # OpenAPI 3.0 REST API Specification & Payload Schemas
 
 > **Document ID:** `BP-API-001`  
-> **Status:** Approved / Production  
+> **Status:** Prototype contract; not production-verified
 > **Target Track:** Developer Ecosystem & System Architecture • Google Cloud All Things Agentic Hackathon (2026)
+
+> **Current disposition (2026-08-29):** Existing schemas describe useful prototype surfaces, but deployment, throughput, authentication, and numerical examples are not established merely by this document. The authoritative routing target publishes `STAY`, `TEST MORE`, or `SWITCH` against an explicit current baseline with measured evidence. See [Model Router Integration](./02-model-router-integration.md) and [Implementation Status](../00-implementation-status.md).
 
 ---
 

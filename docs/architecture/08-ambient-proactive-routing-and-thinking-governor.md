@@ -1,7 +1,9 @@
 # Ambient Proactive Routing, Zero-Click Task Classification & Adaptive Thinking Governance
 
+> **Status notice (2026-08-28): Proposed startup capability.** The hackathon build implements explicit event-triggered configuration evaluation, not passive workspace surveillance or a proven zero-click thinking governor. Exact savings and performance claims in this document are hypotheses until supported by versioned Benchpress runs. See the [authoritative roadmap](../planning/01-product-roadmap-and-phases.md) and [implementation status](../00-implementation-status.md).
+
 > **Document ID:** `BP-ARCH-008`  
-> **Status:** Approved / Production  
+> **Status:** Proposed / Post-hackathon validation required
 > **Target Track:** Best Architectural Design ($5,000 Target) • Google Cloud Hackathon (2026)
 
 ---

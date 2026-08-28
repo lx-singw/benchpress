@@ -1,7 +1,9 @@
 # Official Judging Criteria Deep-Dive & Competitive Rubric Proof
 
+> **Status notice (2026-08-28): Historical planning analysis.** This document predates the narrowed Taskmaster submission and contains target-state claims that are not current implementation evidence. The [authoritative submission plan](./00-authoritative-submission-plan.md), [implementation status](../00-implementation-status.md), and [final checklist](./04-final-submission-checklist.md) take precedence. Do not copy a claim from this file into the submission unless it is visible in the final build and retained evidence.
+
 > **Document ID:** `BP-HACK-003`  
-> **Status:** Approved / Official Hackathon Artifact  
+> **Status:** Historical / Superseded by `00-authoritative-submission-plan.md`
 > **Target Competition:** Google Cloud All Things Agentic Hackathon (2026)  
 > **Target Score:** 100/100 (Undisputed Grand Prize & Primary Track Winner)
 

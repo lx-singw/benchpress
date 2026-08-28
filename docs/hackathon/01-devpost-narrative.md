@@ -1,71 +1,133 @@
-# Official Devpost Submission Narrative & Google Cloud Rubric Alignment
+# Devpost submission narrative
 
-> **Document ID:** `BP-HACK-001`  
-> **Status:** Approved / Official Submission  
-> **Target Competition:** Google Cloud All Things Agentic Hackathon (2026)  
-> **Target Prizes:**  
-> 1. **Grand Prize & Venture-Grade Platform**  
-> 2. **Best Architectural Design** ($5,000 USD + $1,000 GCP Credits)  
-> 3. **Best Multimodal UX** ($5,000 USD + $1,000 GCP Credits)  
-> 4. **Primary Track: The Taskmaster** (Event-driven asynchronous agent fleets, massive data telemetry)  
-> 5. **The Fortified Enterprise Fleet** (Enterprise security, sandboxing & governance)
+> **Status:** Submission draft; replace bracketed evidence only with final demonstrated values
+> **Track:** The Taskmaster
 
----
+## Project title
 
-## 1. Project Title & Tagline
+**Benchpress**
 
-### **Benchpress** 🏋️‍♂️
-> **The Independent Economic & Trajectory Intelligence Platform for AI Agents & Model Routing**  
-> *"Artificial Analysis for the Agentic Era"*
+## Tagline
 
----
+**Autonomous model-change evaluation that publishes `STAY`, `TEST MORE`, or `SWITCH` before production quality or spend is at risk.**
 
-## 2. Devpost Submission Narrative
+## Inspiration
 
-### 💡 Inspiration: The Agentic Cost & Operational Crisis
-As software engineering and enterprise operations transition from single-prompt LLM completions to multi-turn autonomous agent loops, enterprises face a silent financial and operational crisis:
-1. **Pass@1 is a deceptive metric:** A model boasting $85\%$ Pass@1 accuracy by burning $\$4.50$ and 45 tool turns per bug fix is commercially unviable compared to an agent achieving $82\%$ accuracy at $\$0.18$ and 4 turns.
-2. **Context degradation is catastrophic:** As multi-turn scratchpads and tool outputs accumulate, models suffer non-linear cognitive decay, leading to hallucinated tool signatures and infinite file-traversal loops.
-3. **Monolithic routing burns millions:** Routing simple file navigation turns to heavyweight frontier models wastes up to $85\%$ of enterprise AI budgets.
-4. **Human operational friction is high:** Engineers waste hours manually investigating CI/CD build crashes, debugging failing tool schemas, and tweaking model routing configurations.
+Engineering teams can choose among many AI models, service tiers, and reasoning settings, but provider catalogs do not answer the operational question that matters: which exact configuration is the best quality, cost, and latency tradeoff for this workload?
 
-We built **Benchpress** to become the definitive, independent standard for agent economic intelligence—bringing mathematical rigor, deterministic sandboxing, real-time model routing, and **closed-loop autonomous self-governance** to the agentic era.
+List prices and generic leaderboards are insufficient for agentic coding. A workflow may require multiple turns, tool calls, retries, test execution, and recovery from failures. The cheapest successful-looking request can become the most expensive verified resolution once failed attempts are included.
 
----
+We built Benchpress to turn that guesswork into a bounded, repeatable background workflow.
 
-### 🚀 What Benchpress Does: The 5 Autonomous Breakthrough Pillars
+## What it does
 
-Benchpress is powered by **5 Breakthrough Autonomous Pillars** that eliminate real-world human engineering friction:
+Benchpress detects or receives a relevant model, reasoning, capability, or pricing change. A Gemini-powered Evaluation Orchestrator fingerprints the target workload—including workflow phase—compares alternatives with the team’s exact current configuration, designs the smallest useful discriminating experiment, and submits its spend and stopping rules to deterministic policy.
 
-1. 🔄 **Closed-Loop Self-Tuning Router:** A background canary fleet orchestrated via **Google Cloud Tasks** runs every 6 hours across holdout suites. If it detects model weight drift or provider pricing changes ($\Delta \text{CPR} > 10\%$), it autonomously recalculates the Pareto frontier and broadcasts updated routing policies via webhooks to IDEs (Cursor/Windsurf) and API gateways with zero human intervention.
-2. 🩹 **Autonomous AST Tool-Healer & Dynamic Schema Patching:** An autonomous **Supervisor Agent (Gemini 2.5 Pro)** that intercepts duplicate tool schema failures ($\ge 2$), analyzes the AST mismatch, synthesizes a dynamic Python adapter wrapper, injects it into the execution sandbox, and auto-resumes the run to resolution (converting $85.6\%$ of tool failures into passing runs).
-3. 🛡️ **Predictive FinOps Budget Sentinel & Token Velocity Governor:** Real-time **Markov chain trajectory forecasting at Turn 5** that calculates downstream token burn. If expected cost exceeds $2.5\times$ median CPR, it autonomously steps down the model tier (Gemini 2.5 Pro $\rightarrow$ Gemini 3.5 Flash) and prunes redundant AST contexts, slashing runaway loop costs by $89.1\%$.
-4. 🤖 **Autonomous CI/CD Crash-to-PR Auto-Remediation Daemon:** Ingests failing GitHub Actions CI runs via HMAC-verified webhooks, provisions an isolated Cloud Run gVisor sandbox, matches failure vectors in BigQuery, executes a 2-Tiered Hybrid fix trajectory, verifies pytest ground-truth assertions, and autonomously opens a verified Pull Request tagged `[BENCHPRESS-AUTO]` with an economic CPR report in $< 3$ minutes.
-5. ⚖️ **Real-Time Economic Arbitrage Engine:** Continuously monitors foundation model market pricing and benchmarks, computing the live Arbitrage Spread between frontier models and optimized hybrid routes, and generating 1-click executable migration configs.
+Once approved, Benchpress dispatches parallel benchmark jobs through Google Cloud Tasks. Each worker invokes an exact model and native reasoning configuration, runs the same versioned coding task and tools, verifies the outcome with deterministic tests, and records actual usage, latency, failures, and cost.
 
----
+Benchpress evaluates evidence as it arrives, stops invalid or clearly dominated branches, and preserves every incurred attempt in the economics. It can reject the cheapest option when it fails a quality or safety boundary, or abstain when the evidence cannot support a change.
 
-### 🎨 Tri-Modal Multimodal User Experience (Sub-200ms)
-- **Live Voice Intelligence Agent:** Sub-200ms duplex spoken dialogue powered directly by the **Vertex AI Gemini Multimodal Live API over WebRTC**.
-- **Vision OCR Error Dropzone:** Drag-and-drop terminal stack traces and architecture diagrams to vector-match against BigQuery failure trees.
-- **Interactive Tactile Canvas:** Obsidian Dark Glassmorphism canvas with synchronized DOM highlights, real-time token burn waterfalls, and draggable Pareto frontier sliders.
+An eligible candidate enters a versioned, contained canary. Deterministic quality, cost, latency, and failure guardrails promote it or automatically restore the previous version. Benchpress then publishes a replayable evidence receipt and one clear decision:
 
----
+- `STAY` when the current baseline remains the safest eligible policy.
+- `TEST MORE` when the evidence is insufficient, tied, stale, or incompatible.
+- `SWITCH` when the candidate passes both evaluation and canary guardrails.
 
-### 🏛️ Google Cloud Platform Architectural Triumphs
-- **Cloud Tasks (The Taskmaster):** Token-bucket rate limiting and concurrency throttling, dispatching hundreds of concurrent benchmark tasks into serverless workers without triggering upstream 429 errors.
-- **Cloud Run Gen2 (gVisor Sandboxing):** Executes untrusted multi-turn agent code within isolated user-space kernel sandboxes (`runsc`) with ephemeral `tmpfs` virtual file systems and strict VPC Service Controls perimeter defense.
-- **Memorystore Redis + BigQuery Storage Write API:** Micro-batches tens of thousands of turn metrics per second, writing Protobuf streams directly into partitioned and clustered BigQuery analytics tables for sub-second analytical querying.
-- **Vertex AI Gemini Ecosystem:** Leverages Gemini 2.5 Pro for architectural planning and supervisor healing, Gemini 3.5 Flash / 3.7 Flash for fast AST code generation, and Gemini Multimodal Live API for sub-200ms duplex audio dialogue.
-- **Enterprise Security & Compliance:** Google Cloud Sensitive Data Protection (DLP API) PII scrubbing, Cloud KMS CMEK encryption, SOC 2 Type II mapping, and Google SAIF alignment.
+The published record shows the exact current and candidate configurations, task and workflow-phase match, sample count, harness version, evaluation date, provenance, decision boundary, limitations, “why,” and what would reverse the decision.
 
----
+The catalog, aggregate explorer, methodology, and historical receipts remain free to browse. Decision cards and future IDE, SDK, or gateway integrations bring that same published evidence into the moment a team considers a switch. The long-term startup product adds private customer evaluations, continuous regression monitoring, routing APIs, team economics, and governed policy deployment.
 
-## 3. Google Cloud Hackathon Rubric Alignment Matrix
+## Autonomous workflow
 
-| Evaluation Rubric Criteria | Weight | Target | Concrete Benchpress Implementation & Evidence |
-| :--- | :---: | :---: | :--- |
-| **1. Innovation & Autonomous Utility** | **40%** | **10 / 10** | 5 Autonomous Breakthrough Pillars: Closed-Loop Self-Tuning Router, Supervisor AST Healer, Predictive Budget Sentinel, CI/CD Crash-to-PR Daemon, Arbitrage Engine. Complete proof in [`docs/hackathon/03-judging-criteria-deep-dive.md`](./03-judging-criteria-deep-dive.md). |
-| **2. Architectural Discipline & GCP Stack** | **30%** | **10 / 10** | Enhanced 13-State FSM, gVisor container isolation, Cloud Tasks token-bucket queues, BigQuery Storage Write API, 6 formal ADRs, and 100% production Terraform HCL manifests. |
-| **3. Multimodal UX & Innovation** | **20%** | **10 / 10** | Tri-Modal UX: Sub-200ms WebRTC Gemini Live Audio + Vision OCR Dropzone + Synchronized Canvas DOM state machine. |
-| **4. Enterprise Governance & Security** | **10%** | **10 / 10** | Cloud DLP PII sanitization, SOC 2 Type II mapping, CMEK encryption, Google SAIF alignment, and emergency kill-switches. |
+Benchpress uses one autonomous Gemini Evaluation Orchestrator and many controlled workers:
+
+1. Receive a catalog, price, or explicit evaluation event.
+2. Use typed tools to inspect supported model configurations.
+3. Fingerprint the workload and workflow phase; declare the exact current configuration as baseline.
+4. Obtain deterministic budget, evidence-threshold, and stopping-rule approval.
+5. Dispatch idempotent Cloud Tasks jobs.
+6. Execute provider-backed evaluations, deterministic tests, and sequential stopping.
+7. Persist usage, cost, latency, failures, stop reasons, and outcomes under one correlation ID.
+8. Calculate versioned aggregates and return reject, abstain, or canary eligibility.
+9. Verify the contained canary and promote or automatically roll back.
+10. Publish an evidence receipt, decision replay, and `STAY`, `TEST MORE`, or `SWITCH` recommendation.
+
+The workers are parallel execution jobs, not an uncontrolled agent swarm. Arithmetic, scoring, budgets, and promotion policy remain deterministic.
+
+For this submission, candidates are exact single-model/reasoning configurations. Phase-aware planner/executor/reviewer policies are a direct extension of the same evidence loop, not a claim about the judged build.
+
+## Google technology
+
+- **Gemini 3.5 or newer:** bounded orchestration and structured tool selection; exact demonstrated model: `[MODEL_ID]`.
+- **Google agent framework:** `[Google GenAI SDK or ADK]`.
+- **Cloud Run:** hosts `[web/worker]` at revision `[REVISION]`.
+- **Cloud Tasks:** dispatches configuration/task jobs with bounded concurrency and retries.
+- **BigQuery or Firestore:** stores `[run ledger/aggregate state]`.
+- **Correlation ID:** `[ID]` connects the event, agent, jobs, usage, tests, aggregate, and public result.
+
+Optional bonus, include only when genuinely implemented and evidenced:
+
+- **Gemma:** `[EXACT MODEL AND JUSTIFIED ROLE—TASK FINGERPRINT OR CHALLENGER]`; invocation, usage/cost, output, and workflow effect: `[EVIDENCE]`.
+
+## What is measured
+
+For the submitted cohort:
+
+- Task category: `[CATEGORY]`
+- Task count: `[COUNT]`
+- Configurations: `[EXACT NATIVE CONFIGURATIONS]`
+- Repetitions: `[COUNT]`
+- Harness version: `[VERSION/HASH]`
+- Evaluation timestamp: `[TIMESTAMP]`
+- Result URL: `[URL]`
+
+Insert final measured results here only after completing and retaining the corresponding run manifests.
+
+## Challenges
+
+The hardest parts were not drawing a leaderboard or calling a model. They were preserving comparability and trust:
+
+- Normalizing provider metadata without pretending native reasoning controls are equivalent.
+- Preventing duplicate jobs and double-counted cost under at-least-once delivery.
+- Distinguishing infrastructure retries from model failures.
+- Including failed attempts in cost per verified resolution.
+- Separating official specifications, measured results, experiments, stale results, and UI fixtures.
+- Keeping the model inside clear budget, tool, workspace, and publication boundaries.
+- Designing early-stop rules that save future spend without hiding failures or biasing the denominator.
+- Treating abstention and rollback as successful safety outcomes rather than forcing a recommendation.
+
+## Accomplishments
+
+Use only accomplishments visible in the final repository and video:
+
+- `[REAL GEMINI ORCHESTRATION EVIDENCE]`
+- `[REAL CLOUD TASKS EXECUTION EVIDENCE]`
+- `[REAL PERSISTED RUN/AGGREGATE EVIDENCE]`
+- `[REAL PUBLIC RESULT UPDATE]`
+- `[REPRODUCIBILITY OR SECURITY EVIDENCE]`
+
+## What we learned
+
+The main lesson is that model selection is an empirical policy lifecycle, not a one-time leaderboard lookup. The right answer depends on task shape, native reasoning controls, tools, prompt and harness version, budget, latency tolerance, evidence sufficiency, and the definition of a verified outcome.
+
+We also learned that autonomy is strongest when authority is explicit: Gemini decides which bounded experiment to run, while deterministic services enforce money, stopping, scoring, idempotency, promotion, and rollback.
+
+## What is next
+
+After the hackathon, Benchpress will:
+
+1. Expand the official registry across Google, OpenAI, Anthropic, and additional providers.
+2. Grow contamination-resistant coding cohorts and private customer evaluations.
+3. Add confidence-aware continuous refresh when models, prices, or harnesses change.
+4. Offer routing APIs and SDK integrations backed by measured customer outcomes.
+5. Add governed policy rollout, monitoring, and rollback.
+6. Build enterprise privacy, identity, data residency, and audit controls.
+
+These are roadmap commitments, not claims about the submitted build.
+
+## Disclosure and limitations
+
+- Static model profiles and the legacy harvester contain demo fixtures unless explicitly marked Benchpress measured.
+- `[LIST ANY REPLAYED OR SIMULATED EXTERNAL DEPENDENCIES]`.
+- `[LIST PRE-EXISTING WORK INCORPORATED AND DEVELOPMENT-PERIOD DISCLOSURE]`.
+- The submitted benchmark is intentionally small and demonstrates the pipeline rather than universal model superiority.

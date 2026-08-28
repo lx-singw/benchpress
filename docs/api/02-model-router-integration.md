@@ -1,14 +1,16 @@
 # Model Router Integration, SDKs & "Why Switch?" Rationale Widget
 
 > **Document ID:** `BP-API-002`  
-> **Status:** Approved / Production  
+> **Status:** Prototype integration; authoritative target contract below
 > **Target Track:** Developer Ecosystem & Multimodal UX • Google Cloud All Things Agentic Hackathon (2026)
+
+> **Current disposition (2026-08-29):** The existing SDK and widget examples are reusable prototypes. Their fixed model choices, latency, quality, and savings values are demo fixtures until populated from versioned measured aggregates. Section 2 defines the authoritative direction.
 
 ---
 
 ## 1. Architecture: Real-Time Dynamic Model Routing
 
-Modern AI development environments (Cursor, Windsurf, Claude Code) and routing proxies (Not Diamond, Portkey, LiteLLM) can query Benchpress to dynamically select the optimal model choreography before dispatching expensive reasoning loops.
+Modern AI development environments and routing gateways can query Benchpress for the relevant published decision before adopting a model or reasoning change. They do not receive an unqualified “optimal” route or silently apply one.
 
 ```mermaid
 sequenceDiagram
@@ -19,19 +21,106 @@ sequenceDiagram
     participant Vertex as Vertex AI (Gemini 2.5/3.5)
 
     Dev->>IDE: Submits Multi-File Refactor Prompt
-    IDE->>BP: POST /api/v1/routing-recommendation (Language=Python, Task=Refactor)
-    BP-->>IDE: 200 OK: Route=HYBRID (Planner: Gemini 2.5 Pro, Coder: Gemini 3.5 Flash)
-    
-    IDE->>IDE: Display "Why Switch?" Popover (Save 87% Cost)
-    IDE->>Vertex: Turn 1 -> Gemini 2.5 Pro (Planning & Task Decomposition)
-    Vertex-->>IDE: Plan Strategy Checkpoints
-    IDE->>Vertex: Turns 2..N -> Gemini 3.5 Flash (AST Edits & Pytest Runs)
-    Vertex-->>IDE: Verified Applied Code Patch
+    IDE->>BP: POST decision request + current policy + task fingerprint
+    BP-->>IDE: Published STAY / TEST_MORE / SWITCH + receipt and replay
+    IDE->>IDE: Display Switch Decision Card and evidence
+    alt SWITCH and authorized contained canary
+        IDE->>Vertex: Execute candidate only inside approved canary boundary
+        Vertex-->>IDE: Canary observations
+        IDE->>BP: Persist promotion or rollback result
+    else STAY or TEST_MORE
+        IDE->>IDE: Keep current policy; show rejection or next evidence plan
+    end
 ```
+
+## 2. Authoritative target: published Switch Decision
+
+The API does not replace the public Benchpress web or silently route traffic. It retrieves the same versioned decision that Benchpress publishes after the autonomous evaluation lifecycle.
+
+### Required request context
+
+```json
+{
+  "current_policy": {
+    "policy_version": "policy-current-v7",
+    "provider": "google",
+    "model": "<exact-model-id>",
+    "native_configuration": {}
+  },
+  "task_fingerprint": {
+    "task_family": "security_repair",
+    "workflow_phase": "execution",
+    "language": "typescript",
+    "repository_scale": "medium",
+    "risk": "high",
+    "latency_sensitivity": "interactive"
+  },
+  "constraints": {
+    "minimum_quality": "<declared threshold>",
+    "maximum_cpr_usd": "<declared threshold>",
+    "maximum_latency_ms": "<declared threshold>",
+    "allow_contained_canary": true
+  }
+}
+```
+
+An unspecified current policy may receive public exploration results, but it cannot receive a personalized switching claim.
+
+### Required response shape
+
+```json
+{
+  "decision": "STAY | TEST_MORE | SWITCH",
+  "decision_version": "decision-v12",
+  "current_policy": {},
+  "candidate_policy": {},
+  "task_match": {
+    "fingerprint_version": "fp-v3",
+    "workflow_phase": "execution",
+    "cohort_id": "cohort-v9"
+  },
+  "evidence": {
+    "quality": {},
+    "observed_cpr": {},
+    "latency": {},
+    "sample_count": 0,
+    "uncertainty": {},
+    "freshness": {},
+    "failed_guardrails": []
+  },
+  "why": "<evidence-grounded explanation>",
+  "what_would_reverse_it": ["<condition>"],
+  "next_evidence_plan": null,
+  "canary": {},
+  "receipt_url": "<published receipt>",
+  "replay_url": "<published replay>"
+}
+```
+
+Decision semantics:
+
+- `STAY`: the current policy remains eligible; the candidate was rejected, dominated, or rolled back.
+- `TEST_MORE`: evidence is insufficient, tied, stale, or incompatible; `next_evidence_plan` states the bounded next experiment.
+- `SWITCH`: the candidate passed evidence thresholds and the contained canary.
+
+### Economic labels
+
+Every number declares `OBSERVED`, `PROJECTED`, or `ILLUSTRATIVE`. Projected savings must identify their observed inputs, workload volume, time horizon, price version, evaluation cost, switching cost, rollback assumption, and uncertainty. The API must not silently convert a per-token price difference into a verified savings claim.
+
+### Delivery surfaces
+
+The same decision envelope may be rendered by:
+
+- The free public Benchpress model/configuration page.
+- The Switch Decision Card.
+- TypeScript or Python SDKs.
+- An IDE extension, CI check, gateway, or internal policy console.
+
+These are delivery channels for one published evidence record, not separate decision engines.
 
 ---
 
-## 2. Production Python SDK (`benchpress-python`)
+## 3. Prototype Python SDK (`benchpress-python`)
 
 ```python
 # File: sdk/python/benchpress/client.py
@@ -95,7 +184,7 @@ class BenchpressClient:
 
 ---
 
-## 3. Production TypeScript SDK (`@benchpress/sdk`)
+## 4. Prototype TypeScript SDK (`@benchpress/sdk`)
 
 ```typescript
 // File: sdk/typescript/src/index.ts
@@ -167,7 +256,7 @@ export class BenchpressClient {
 
 ---
 
-## 4. "Why Switch?" Rationale UI Widget (React / Tailwind Component)
+## 5. Prototype "Why Switch?" Rationale UI Widget (React / Tailwind Component)
 
 ```tsx
 // File: src/components/WhySwitchWidget.tsx

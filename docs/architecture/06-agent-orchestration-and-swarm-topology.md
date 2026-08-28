@@ -1,216 +1,270 @@
-# Multi-Agent Orchestration, Swarm Choreography & Supervisor-Worker Topology
+# Evaluation orchestrator and parallel worker topology
 
-> **Document ID:** `BP-ARCH-006`  
-> **Status:** Approved / Production  
-> **Target Track:** Best Architectural Design ($5,000) & The Taskmaster • Google Cloud Hackathon (2026)  
-> **Cross-References:** [`BP-ARCH-002`](./02-agentic-runtime-and-fsm.md) (Agentic Runtime & FSM), [`ADR-003`](./adrs/ADR-003-hybrid-model-routing-choreography.md) (Hybrid Model Routing), [`ADR-006`](./adrs/ADR-006-autonomous-ast-schema-healing.md) (AST Schema Healing)
+> **Document ID:** `BP-ARCH-006`
+> **Status:** Authoritative target for the hackathon build
+> **Decision:** One autonomous Gemini orchestrator, many controlled workers, no agent swarm
+> **Target track:** The Taskmaster
 
----
+## 1. Decision
 
-## 1. Executive Summary & Orchestration Philosophy
+Benchpress will use one bounded **Evaluation Orchestrator** powered by Gemini 3.5 or newer through an allowed Google agent framework. It will decide which evaluations are necessary, enforce the run budget, dispatch jobs, observe completion, and publish an evidence-backed `STAY`, `TEST MORE`, or `SWITCH` recommendation against the current baseline.
 
-Traditional LLM workflows rely on single-prompt completions or monolithic monolithic agent loops where a single foundation model attempts to plan, code, execute, diagnose, and govern its own execution. In complex multi-turn benchmarks (e.g., SWE-bench Verified, CyberSec CTFs, Multi-Doc Financial Ops), monolithic agents suffer from:
-1. **Context Window Degradation & Rot:** Large context accumulations degrade instruction-following and tool accuracy.
-2. **Economic Inefficiency (Negative CPR Drift):** Running high-parameter reasoning models (e.g., Gemini 2.5 Pro, Claude 3.7 Sonnet) for routine shell executions or AST edits wastes up to 85% in inference costs.
-3. **Cascading Tool Failures:** Broken parameter schemas or malformed JSON payloads lock monolithic agents into unrecoverable error loops.
+Benchmark executions run as independent Cloud Tasks jobs. They may execute concurrently, but they are not peer agents and do not negotiate, vote, or mutate shared policy. Deterministic code owns validation, arithmetic, scoring, and policy boundaries.
 
-**Benchpress** solves this with an **Asynchronous, Deterministic Multi-Agent Swarm Orchestration Engine** operating across specialized agent roles coordinated by a 13-State Finite State Machine and an event-sourced distributed saga backbone.
+This architecture fits the official Taskmaster focus: an event-driven workflow watches for a change, decides what should happen next, interacts with multiple systems, and completes the work without step-by-step guidance.
 
----
+## 2. Why not a swarm
 
-## 2. Multi-Agent Role & Responsibility Matrix
+A swarm would introduce authority conflicts, duplicate evaluations, inconsistent shared state, higher cost, harder reproducibility, and a weak answer to “why was this complexity necessary?” It would also push the submission toward the Fortified Enterprise Fleet expectations of cross-department discovery, multi-agent orchestration, long-term memory, identity, gateway policy, and enterprise governance.
+
+Benchpress needs parallel throughput, not multiple overlapping decision-makers.
+
+## 3. Component model
 
 ```mermaid
 flowchart TB
-    subgraph IngressOrchestrator["Task Dispatch & Ingress Layer"]
-        Dispatcher["Master Dispatcher & Route Recommender<br/>(Edge REST API / Cloud Tasks)"]
-    end
+    Trigger["Catalog, capability, price, or manual evaluation event"] --> Ingress["Request + current baseline"]
+    Ingress --> Orchestrator["Gemini Evaluation Orchestrator"]
 
-    subgraph AgentSwarm["Specialized Autonomous Agent Fleet"]
-        direction TB
-        Planner["Reasoning Planner Agent<br/>(Gemini 2.5 Pro / Claude 3.7)"]
-        Coder["Tactical Execution Coder<br/>(Gemini 2.5 Flash / Fast Path)"]
-        Supervisor["Supervisor AST Tool-Healer<br/>(Gemini 2.5 Pro Meta-Agent)"]
-        Sentinel["FinOps Budget Sentinel<br/>(Markov Velocity Governor)"]
-        Compactor["Hierarchical Memory Compactor<br/>(3-Tier AST Bus)"]
-        SagaManager["Git-Tree Compensating Saga Engine<br/>(Atomic Rollback Controller)"]
-    end
+    Orchestrator --> CatalogTool["Catalog diff tool"]
+    Orchestrator --> FingerprintTool["Task fingerprint tool"]
+    Orchestrator --> ConfigTool["Adaptive experiment tool"]
+    Orchestrator --> BudgetTool["Deterministic cost and budget tool"]
+    Orchestrator --> QueueTool["Cloud Tasks dispatch tool"]
 
-    subgraph ExecutionLayer["Sandboxed gVisor Runtime"]
-        Sandbox["Isolated runsc Workspace<br/>(AMD SEV-SNP Confidential VM)"]
-        EventStream["Append-Only Protobuf Event Bus<br/>(Memorystore Redis -> BigQuery)"]
-    end
+    QueueTool --> W1["Benchmark worker A"]
+    QueueTool --> W2["Benchmark worker B"]
+    QueueTool --> WN["Benchmark worker N"]
 
-    Dispatcher -->|Enqueue Trajectory| Planner
-    Planner -->|Decomposed AST Task Plan| Coder
-    Coder -->|Tool Call Payload| SagaManager
-    SagaManager -->|git write-tree (<4ms)| Sandbox
-    Coder -.->|Schema / Syntax Error| Supervisor
-    Supervisor -->|Dynamic Wrapper Injection| Sandbox
-    Sandbox -->|Execution Telemetry| Sentinel
-    Sentinel -->|Cost Projection / Throttle| Coder
-    Sandbox -->|Raw Context| Compactor
-    Compactor -->|Compressed L2 Working State| Planner
-    Sandbox -->|Turn-by-Turn Spans| EventStream
+    W1 --> Oracle["Deterministic tests and usage normalizer"]
+    W2 --> Oracle
+    WN --> Oracle
+    Oracle --> Ledger["Immutable run ledger"]
+    Ledger --> Aggregate["Aggregate, early-stop, and sufficiency policy"]
+    Aggregate --> Orchestrator
+    Orchestrator --> Policy["Versioned candidate policy"]
+    Policy --> Canary["Contained canary route"]
+    Canary --> Guardrails["Quality, cost, latency, and failure guardrails"]
+    Guardrails -->|pass| Publish["Published SWITCH + evidence receipt"]
+    Guardrails -->|fail| Rollback["Automatic rollback to prior policy"]
+    Aggregate -->|insufficient| TestMore["Published TEST MORE + next evidence plan"]
+    Aggregate -->|candidate rejected| Stay["Published STAY + rejection evidence"]
+    Publish --> Replay["Public decision replay"]
+    Rollback --> Replay
+    TestMore --> Replay
+    Stay --> Replay
 ```
 
-| Agent Role | Model Tier / Engine | Core Responsibility | Latency SLA | Error Boundary & Recovery |
-| :--- | :--- | :--- | :--- | :--- |
-| **Master Dispatcher** | Edge Next.js Handler / Cloud Tasks | Ingests benchmark tasks, validates rate limits, assigns trajectory GUID, routes to optimal queue. | $< 15\text{ms}$ | Cloud Tasks exponential backoff with dead-letter queue (DLQ). |
-| **Reasoning Planner Agent** | Gemini 2.5 Pro / Claude 3.7 Sonnet | Formulates high-order strategic decomposition, generates multi-phase patch hypotheses. | $800 - 2500\text{ms}$ | Turn ceiling limit; fails over to conservative baseline plan. |
-| **Tactical Execution Coder** | Gemini 2.5 Flash / 3.5 Flash | Emits concrete tool calls (`edit_file`, `bash_exec`, `grep_search`), synthesizes AST diffs. | $150 - 450\text{ms}$ | AST validation trap $\rightarrow$ escalates to Supervisor Healer. |
-| **Supervisor AST Healer** | Gemini 2.5 Pro | Intercepts malformed tool schemas, normalizes parameters, synthesizes dynamic Python wrappers. | $300 - 900\text{ms}$ | Injects in-context adapter; allows execution without agent restart. |
-| **FinOps Budget Sentinel** | Python Markov Process | Computes token velocity and projected total cost at Turn 5; executes early-halt or model step-down. | $< 5\text{ms}$ | Hard budget cap enforcement (\$2.00 default); terminates runaway loops. |
-| **Saga Rollback Manager** | Git Engine (libgit2 / subprocess) | Records pre-mutation `git write-tree` SHA-1; executes atomic `git read-tree` rollback upon failure. | $< 4\text{ms}$ | Restores pristine workspace state; prevents dirty worktree accumulation. |
-| **Hierarchical Memory Compactor** | AST Parser + Vector ScaNN | Compresses L1 scratchpad outputs $\ge 78.5\%$ into L2 semantic outlines; indexes episodic memory in L3. | $< 25\text{ms}$ | Retains symbol tables and function signatures while pruning stdout. |
+## 4. Responsibility boundaries
 
----
+| Component | May do | Must not do |
+|---|---|---|
+| Evaluation Orchestrator | Interpret a change, select an evaluation cohort, call approved tools, explain results | Bypass budgets, invent measurements, alter test outcomes, perform destructive repository actions |
+| Catalog collector | Fetch provider availability and official metadata, preserve sources and timestamps | Infer benchmark quality from marketing text |
+| Task fingerprint service | Describe task type, language/framework, repository/context scale, tools, risk, and latency sensitivity | Read unrelated workspace data or infer protected traits |
+| Adaptive experiment planner | Enumerate supported native configurations and select discriminating tasks/configurations | Treat cross-provider effort labels as computationally equivalent or require a full matrix by default |
+| Budget engine | Estimate maximum cost, reserve budget, reject over-budget plans | Let the model override arithmetic or hard ceilings |
+| Cloud Tasks dispatcher | Enqueue idempotent jobs with correlation IDs and retry metadata | Create duplicate logical runs or acknowledge work without durable ownership |
+| Benchmark worker | Invoke one declared configuration, operate inside the allowed workspace, record raw usage and results | Change global routing policy, broaden tool scope, or publish conclusions |
+| Test oracle | Execute frozen assertions and return pass/fail evidence | Use the evaluated model as the sole judge of its own output |
+| Aggregator | Calculate CPR, success, latency, confidence and Pareto membership | Hide failed attempts or mix incompatible task cohorts |
+| Evidence sufficiency policy | Stop dominated work, test thresholds, and return reject/abstain/canary eligibility | Force a winner, alter predeclared thresholds, or omit incurred cost |
+| Canary policy controller | Version the candidate, route only the contained demo slice, compare guardrails, and restore the prior version | Change customer production traffic or bypass the baseline |
+| Publisher | Publish versioned, provenance-labelled aggregates, receipts, and replay events | Replace a measured result with a fixture or stale result silently |
 
-## 3. End-to-End Swarm Orchestration Sequence
+## 5. Orchestrator tools
 
-The sequence below illustrates the choreographed interaction across the swarm during a single multi-turn problem resolution cycle:
+The Gemini agent should receive a small, typed tool surface:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant UI as apps/web (Live UI / SDK)
-    participant Dispatcher as Cloud Tasks Dispatcher
-    participant FSM as 13-State FSM Engine
-    participant Planner as Planner Agent (Gemini 2.5 Pro)
-    participant Coder as Tactical Coder (Gemini Flash)
-    participant Healer as Supervisor AST Healer
-    participant Sandbox as gVisor Sandbox (runsc)
-    participant Sentinel as FinOps Sentinel
-    participant Saga as Saga Manager (Git-Tree)
-    participant BQ as BigQuery Streamer
+| Tool | Input | Output |
+|---|---|---|
+| `inspect_catalog_change` | Source snapshot IDs | Added, changed, deprecated models/prices/capabilities |
+| `fingerprint_task` | Approved task and repository metadata | Versioned task fingerprint and risk/latency constraints |
+| `list_supported_configurations` | Provider, exact model ID | Native configuration values and constraints |
+| `design_adaptive_experiment` | Change, fingerprint including workflow phase, configurations, current baseline | Discriminating cohort, maximum spend, stopping rules, rationale |
+| `estimate_run_cost` | Manifests and token ceilings | Maximum estimated spend and budget decision |
+| `enqueue_benchmark_matrix` | Approved manifests and idempotency key | Cloud Task IDs and correlation ID |
+| `check_matrix_status` | Correlation ID | Counts by queued/running/passed/failed/terminal state |
+| `evaluate_stop_rules` | Current evidence and approved plan | Continue, stop configuration, stop matrix, or reject |
+| `calculate_aggregates` | Completed cohort ID | Versioned metrics, confidence intervals, exclusions |
+| `evaluate_evidence_sufficiency` | Aggregate and predeclared thresholds | Reject, abstain, or canary eligibility with reason |
+| `create_canary_policy` | Candidate, baseline, aggregate version | Immutable contained-policy version |
+| `verify_or_rollback_canary` | Canary observations and guardrails | Recommended or rolled-back policy state |
+| `publish_decision_receipt` | Policy and evidence versions | Public `STAY`, `TEST MORE`, or `SWITCH`, receipt, and replay URL |
 
-    UI->>Dispatcher: POST /api/v1/trajectory-run {task_id, suite, budget}
-    Dispatcher->>FSM: Enqueue Task Payload
-    FSM->>Sandbox: State: INIT_ENVIRONMENT (Clone fixture & init git)
-    FSM->>Planner: State: PROMPT_PLANNER (Analyze issue & formulate AST plan)
-    Planner-->>FSM: Emitted Plan & Sub-tasks
+Tool schemas are strict. Invalid arguments fail closed and may be repaired only within a bounded retry count. The agent cannot synthesize and execute arbitrary wrappers in the judged path.
 
-    loop Multi-Turn Execution Loop (Turn 1..N)
-        FSM->>Coder: Dispatch tactical sub-task
-        Coder-->>FSM: Tool Call: edit_file(path, replacement)
-        
-        FSM->>Saga: State: GIT_SNAPSHOT (Capture git write-tree SHA)
-        Saga-->>FSM: Tree Hash: 7f8a91b...
+## 6. Workflow states
 
-        FSM->>FSM: State: VALIDATE_AST (Parse AST & Validate Schema)
-        alt AST / Schema Mismatch Detected
-            FSM->>Healer: State: AST_HEALING (Synthesize dynamic adapter)
-            Healer-->>FSM: Repaired Tool Payload
-        end
+The existing FSM can be reused, but the judged workflow should expose a smaller, comprehensible lifecycle:
 
-        FSM->>Sandbox: State: EXECUTE_SANDBOX (Run command inside runsc)
-        Sandbox-->>FSM: Exit Code & Stdout/Stderr
-
-        alt Command Failed (Exit Code != 0)
-            FSM->>Saga: State: ROLLBACK_COMPENSATION (git read-tree --reset)
-            Saga-->>Sandbox: Workspace restored to pristine SHA 7f8a91b...
-        end
-
-        FSM->>Sentinel: State: FINOPS_SENTINEL (Evaluate Turn Cost & Velocity)
-        Sentinel-->>FSM: Decision: CONTINUE | STEP_DOWN | EARLY_HALT
-
-        FSM->>FSM: State: COMPACT_MEMORY (Compress L1 Scratchpad -> L2 AST)
-        FSM->>BQ: Stream Turn Telemetry Event (Protobuf)
-    end
-
-    FSM->>BQ: State: FINALIZE_TELEMETRY (Commit Trajectory Summary)
-    FSM->>UI: State: HALT_TERMINAL (Broadcast Complete via WebSocket)
+```text
+RECEIVED
+  -> VALIDATING_CHANGE
+  -> FINGERPRINTING_TASK
+  -> PLANNING_ADAPTIVE_EXPERIMENT
+  -> CHECKING_BUDGET
+  -> DISPATCHING
+  -> WAITING_FOR_RESULTS
+  -> APPLYING_STOP_RULES
+  -> AGGREGATING
+  -> CHECKING_EVIDENCE_SUFFICIENCY
+  -> APPLYING_POLICY_DECISION
+  -> PUBLISHING_RECEIPT
+  -> COMPLETE
 ```
 
----
+Terminal alternatives:
 
-## 4. Multi-Tier Hybrid Routing & Model Choreography
+- `REJECTED_INVALID_SOURCE`
+- `REJECTED_UNSUPPORTED_CONFIG`
+- `REJECTED_QUALITY_OR_SAFETY`
+- `ABSTAINED_INSUFFICIENT_EVIDENCE`
+- `BUDGET_EXCEEDED`
+- `PARTIAL_FAILURE`
+- `FAILED_AUTH`
+- `FAILED_INFRASTRUCTURE`
 
-Benchpress implements a **2-Tier Closed-Loop Dynamic Model Routing Architecture** designed to maximize the Pareto frontier of Pass Rate vs. Cost per Resolution (CPR):
+Every transition records its timestamp, actor, input artifact, output artifact, and correlation ID.
 
-### 4.1. The 2-Tier Model Allocation Policy
-- **Tier 1 (High-Order Reasoning):** Gemini 2.5 Pro or Claude 3.7 Sonnet is allocated exclusively for **Initial Planning (`PROMPT_PLANNER`)**, **Complex Failure Diagnosis**, and **Supervisor AST Healing (`AST_HEALING`)**.
-- **Tier 2 (Tactical Code Synthesis & AST Execution):** Gemini 2.5 Flash or Gemini 3.5 Flash is allocated for all **Code Patching**, **File Mutations**, and **Subprocess Assertions**.
+The execution lifecycle above drives a separate, versioned policy lifecycle:
 
-### 4.2. Mathematical CPR Arbitrage
-The Cost per Resolution ($\text{CPR}$) under monolithic vs. hybrid swarm orchestration is governed by:
-
-$$\text{CPR}_{\text{monolithic}} = \frac{\sum_{t=1}^{T} \left( C_{\text{pro\_in}} \cdot K_{t,\text{in}} + C_{\text{pro\_out}} \cdot K_{t,\text{out}} \right)}{P(\text{Resolved})}$$
-
-$$\text{CPR}_{\text{hybrid}} = \frac{C_{\text{pro}} \cdot K_{\text{plan}} + \sum_{t=2}^{T} \left( C_{\text{flash\_in}} \cdot K_{t,\text{in}} + C_{\text{flash\_out}} \cdot K_{t,\text{out}} \right) + \mathbb{I}_{\text{heal}} \cdot C_{\text{healer}}}{P(\text{Resolved})}$$
-
-Where $C_{\text{flash}} \approx \frac{1}{10} C_{\text{pro}}$, achieving an empirical **$68.2\% - 85.2\%$ reduction in overall trajectory cost** with equal or superior Pass@1 resolution rates.
-
----
-
-## 5. Supervisor-Worker Dynamic Healing Protocol
-
-When tactical worker models produce schema violations (e.g., parameter key drifts, invalid AST indentations, unescaped markdown blocks in diffs), the orchestration engine triggers the **Supervisor AST Healer Protocol**:
-
-```
-[Tactical Worker Output]
-       │
-       ▼
-┌──────────────────────────────────────┐
-│  AST Schema Validation Engine        │
-│  - Python ast.parse() syntax check   │
-│  - JSON Schema signature validation  │
-└──────────────────┬───────────────────┘
-                   │
-         [Validation Fails]
-                   │
-                   ▼
-┌──────────────────────────────────────┐
-│  Supervisor Agent (Gemini 2.5 Pro)   │
-│  1. Extract AST Parse Exception      │
-│  2. Analyze target function kwargs   │
-│  3. Synthesize corrective wrapper    │
-│  4. Normalize parameter naming       │
-└──────────────────┬───────────────────┘
-                   │
-         [Repaired Payload]
-                   │
-                   ▼
-┌──────────────────────────────────────┐
-│  Sandbox Execution Engine            │
-│  - Injected wrapper executes safely  │
-│  - Telemetry logs: ast_healed=True   │
-└──────────────────────────────────────┘
+```text
+CHANGE_DETECTED
+  -> EXPERIMENTAL
+  -> EVALUATING
+  -> REJECTED
+     | ABSTAINED
+     | CANARY
+          -> VERIFYING
+          -> ROLLED_BACK
+             | RECOMMENDED
 ```
 
----
+Transition guards are deterministic:
 
-## 6. Distributed Git-Tree Saga Pattern for Failure Recovery
+- `REJECTED` records an invalid, dominated, unsafe, or quality-failing candidate.
+- `ABSTAINED` records why the current evidence cannot support a change.
+- `CANARY` requires complete provenance, current inputs, sufficient evidence, and an approved immutable candidate version.
+- `RECOMMENDED` requires the contained canary to satisfy predeclared quality, cost, latency, and infrastructure guardrails.
+- `ROLLED_BACK` atomically restores the previously active policy version after a failed or incomplete canary.
+- Only one current policy exists for a task segment; history is append-only.
 
-In multi-step coding benchmarks, a failed edit can corrupt the repository worktree, causing all downstream tests to fail cascadingly. Benchpress utilizes low-overhead git-tree snapshots to enforce transactional isolation:
+### Internal states and user-facing decisions
 
-1. **Pre-Action Snapshot (`git write-tree`):**
-   - Before executing an agent's code change, the engine invokes `git write-tree` directly against the git index, recording the tree SHA-1 in $< 4\text{ms}$ without creating redundant commit history.
-2. **Post-Action Verification:**
-   - The test suite executes inside the gVisor sandbox.
-3. **Compensating Rollback (`git read-tree --reset -u <SHA>`):**
-   - If tests regress or catastrophic syntax errors occur, the engine triggers an atomic rollback to the pre-action tree SHA in $< 6\text{ms}$, returning the workspace to a pristine state for the next turn.
+The internal lifecycle remains detailed for audit and recovery. Its public expression is deliberately simple:
 
----
+| Internal terminal condition | Published decision |
+|---|---|
+| Candidate rejected/dominated, canary rolled back, or baseline still wins | `STAY` |
+| Insufficient/tied/stale/incompatible evidence | `TEST MORE` |
+| Candidate passes evidence policy and contained canary | `SWITCH` |
 
-## 7. Predictive Budget Sentinel & Turn-5 Early-Halt Governor
+All three paths call the publisher. Publication is not reserved for successful promotion. The web explorer stores the complete record; a Switch Decision Card, API, SDK, IDE, or gateway may surface the same published record at adoption time.
 
-To eliminate infinite tool loops and budget drain, the **Velocity Sentinel** evaluates the trajectory at every turn:
+## 7. Idempotency and concurrency
 
-$$\text{ProjectedCost}(T) = \text{Cost}_{\text{current}} + \left( \frac{\text{Cost}_{\text{current}}}{t} \times (T_{\text{max}} - t) \right) \cdot \alpha_{\text{Markov}}$$
+The logical run key should be derived from immutable inputs:
 
-- **Turn-1 to Turn-4:** Normal execution with token velocity tracking.
-- **Turn-5 Sentinel Gate:** If $\text{ProjectedCost} > 1.15 \times \text{BudgetLimit}$, the sentinel issues an `EARLY_HALT` decision with confidence score $\ge 0.91$, saving $100\%$ of unpromising downstream tokens.
-- **Hard Budget Ceiling:** Instantaneous termination if cumulative spend $\ge \text{BudgetLimit}$ (\$2.00).
+```text
+hash(
+  provider
+  + model_snapshot
+  + native_configuration
+  + task_version
+  + repository_commit
+  + harness_version
+  + prompt_hash
+  + tool_schema_hash
+  + repetition_index
+)
+```
 
----
+The database must reject duplicate logical run keys. Cloud Tasks retries the same job rather than creating another logical run. The publisher uses compare-and-swap or a version precondition so an older cohort cannot overwrite a newer recommendation.
 
-## 8. Summary of Orchestration Verification & Guarantees
+Concurrency is bounded per provider and model family. A worker may be retried only for declared transient failures; model-invalid output remains an evaluated outcome, not an infrastructure retry.
 
-| Orchestration Guarantee | Mechanism | SLA / Threshold | Production Verification |
-| :--- | :--- | :--- | :--- |
-| **Deterministic State Progression** | 13-State Async FSM Engine | Zero unhandled state transitions | Verified in `tests/test_fsm.py` |
-| **AST Schema Auto-Repair** | Gemini 2.5 Pro Supervisor Healer | $\ge 85.6\%$ recovery of schema errors | Verified in `AstHealer.repair_payload` |
-| **Non-Destructive Workspace Execution** | Git-Tree Sagas (`write-tree` / `read-tree`) | $< 10\text{ms}$ rollback latency | Verified in `SandboxRunner.rollback_to_snapshot` |
-| **Runaway Loop Containment** | Turn-5 Markov Sentinel Governor | $100\%$ containment of budget overruns | Verified in `VelocitySentinel.evaluate_turn` |
-| **Context Window Preservation** | 3-Tier Hierarchical Memory Bus | $\ge 78.5\%$ AST compaction ratio | Verified in `MemoryBus.compact_working_memory` |
+## 8. Budget and safety boundaries
+
+- The orchestrator proposes work; deterministic policy approves or rejects it.
+- Every matrix has a maximum total spend, per-run spend, turn ceiling, wall-clock timeout, and concurrency ceiling.
+- Every personalized decision names the current model/configuration or active policy version. The system cannot infer a switch benefit against an unspecified baseline.
+- Usage is charged from provider-returned counters where available, not synthetic token assumptions.
+- Sequential stopping may prevent future work, but it never removes incurred usage, failures, or eligible observations from the ledger.
+- The worker operates only inside its assigned temporary workspace.
+- External writes, package installation, Git pushes, pull requests, and destructive actions require separate authority and are outside the model-evaluation demo.
+- A failed or incomplete cohort cannot be promoted as the default recommendation.
+- Statistical ties, stale inputs, and insufficient samples terminate as `ABSTAINED`, not as an arbitrary recommendation.
+- Canary authority is limited to the contained demo route; its previous version is always retained for rollback.
+- No worker receives unrelated provider credentials.
+
+## 9. Failure recovery
+
+| Failure | Required behavior |
+|---|---|
+| Provider 429/5xx | Bounded exponential backoff; record retry cost and final state |
+| Invalid native parameter | Mark configuration unsupported; do not silently substitute a different value |
+| Worker timeout | Terminate, persist partial usage, and mark run failed |
+| Duplicate delivery | Return the existing logical run state |
+| Malformed model tool call | Validate, allow a bounded repair, then fail the run |
+| Test failure | Record as model outcome; do not convert it into infrastructure retry |
+| Repeated invalid tool calls | Reject or stop that configuration under the predeclared rule; preserve attempts and cost |
+| Candidate is dominated | Cancel only undispatched work for that candidate; preserve evidence and the stop rationale |
+| Partial matrix failure | Aggregate only under an explicit incomplete-cohort label; do not promote |
+| Insufficient or tied evidence | Publish an abstention receipt and retain the current policy |
+| Model alias, price, task, tool schema, or harness changes mid-run | Mark affected evidence stale; abstain or schedule a fresh experiment |
+| Canary violates a guardrail | Atomically restore the prior policy and publish a rollback event |
+| Canary verification is incomplete | Fail closed to the prior policy; never infer promotion |
+| Publisher failure | Retry idempotently using the same aggregate version |
+| Budget exhaustion | Stop undispatched jobs and preserve completed evidence |
+
+## 10. Observability contract
+
+One correlation ID connects:
+
+- Trigger or source change
+- Current baseline and workflow-phase fingerprint
+- Orchestrator request and model metadata
+- Proposed and approved evaluation plan
+- Task fingerprint and stopping-rule version
+- Cloud Task IDs
+- Worker invocation records
+- Provider usage and latency
+- Test outcomes
+- Aggregate version
+- Evidence-sufficiency decision
+- Candidate, baseline, and active policy versions
+- Canary observations and any rollback event
+- Published receipt, replay, and recommendation versions
+
+The demo must show this ID in the UI, Cloud Tasks/Cloud Run logs, and the persisted record.
+
+## 11. Hackathon evidence
+
+The architecture is demonstrated only when the video shows:
+
+1. A genuine change or explicitly labelled replay event.
+2. A real Gemini 3.5+ orchestrator response with structured tool use.
+3. A budget-approved matrix.
+4. Multiple Cloud Tasks jobs executing.
+5. At least two native model/thinking configurations, selected as an adaptive experiment.
+6. Deterministic tests and actual usage records, including a deliberately rejected cheap failure.
+7. A visible early-stop or bounded-completion decision with all incurred cost retained.
+8. A stored aggregate that can reject, abstain, or authorize a contained canary.
+9. A versioned canary that is promoted or automatically rolled back under guardrails.
+10. An evidence receipt, public decision replay, and one published `STAY`, `TEST MORE`, or `SWITCH` outcome.
+11. A visible Google Cloud deployment and shared correlation ID.
+
+## 12. Post-hackathon multi-agent option
+
+Multiple agents may be introduced later only when responsibilities require different context, tools, permissions, or failure boundaries:
+
+```text
+Evaluation Supervisor
+  |- Catalog Intelligence Agent
+  |- Benchmark Design Agent
+  |- Security and Policy Agent
+  `- Recommendation Explanation Agent
+```
+
+Even then, benchmark executions remain deterministic worker jobs. A new agent must have an independently testable contract and must improve a measured quality, latency, or operational outcome before joining the production path.

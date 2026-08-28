@@ -1,8 +1,10 @@
 # User Journey Maps & Exhaustive ASCII Wireframes
 
 > **Document ID:** `BP-UX-003`  
-> **Status:** Approved / Production  
+> **Status:** Historical UX concepts plus authoritative Switch Decision Card target
 > **Target Track:** Best Multimodal UX ($5,000) • Google Cloud All Things Agentic Hackathon (2026)
+
+> **Current disposition (2026-08-29):** The multimodal behavior and exact performance, savings, latency, and quality values in sections 1–2 are prototype/demo concepts, not measured facts. They must not appear in the submission without retained evidence. Section 3 preserves the valuable decision-time interaction in a truthful form aligned with the [authoritative submission plan](../hackathon/00-authoritative-submission-plan.md).
 
 ---
 
@@ -150,3 +152,58 @@ journey
 | [ ✅ Switch to Hybrid Route (Save $1.61/task) ]   [ ⚙️ Configure Thresholds ]   [ Dismiss ]   |
 +-----------------------------------------------------------------------------------------------+
 ```
+
+## 3. Authoritative Switch Decision Card
+
+The restored UX does not replace publication. Benchpress first publishes a versioned evidence record on the public web; the card surfaces that same record when a user is considering a model or reasoning change.
+
+### Required states
+
+- `STAY`: the current configuration remains the safest eligible choice.
+- `TEST MORE`: the evidence cannot yet support a switch and a bounded next experiment is available.
+- `SWITCH`: the candidate passed the evidence policy and contained canary.
+
+### Required card
+
+```text
++--------------------------------------------------------------------------------------------------+
+| BENCHPRESS SWITCH DECISION                                              [OBSERVED] [CURRENT]     |
++--------------------------------------------------------------------------------------------------+
+| DECISION: STAY | TEST MORE | SWITCH                 Decision v12 • measured 2026-08-29          |
+|                                                                                                  |
+| CURRENT BASELINE                    CANDIDATE                                                     |
+| Provider/model: <exact ID>          Provider/model: <exact ID>                                  |
+| Native settings: <exact values>     Native settings: <exact values>                             |
+| Policy version: current-v7          Policy version: candidate-v8                                |
++--------------------------------------------------------------------------------------------------+
+| TASK MATCH                                                                                       |
+| TypeScript • security repair • execution phase • medium repository • high risk                  |
++--------------------------------------------------------------------------------------------------+
+| MEASURED EVIDENCE                 CURRENT                 CANDIDATE                               |
+| Verified quality                 <value / sample>        <value / sample>                        |
+| Cost per verified resolution     <observed CPR>          <observed CPR>                          |
+| Latency                          <observed range>        <observed range>                        |
+| Failed guardrails                <evidence>              <evidence>                              |
+| Freshness / uncertainty          <date / interval>       <date / interval>                       |
++--------------------------------------------------------------------------------------------------+
+| WHY THIS DECISION: <evidence-grounded explanation>                                              |
+| WHAT WOULD REVERSE IT: <specific new evidence or guardrail condition>                            |
++--------------------------------------------------------------------------------------------------+
+| [View receipt] [Replay decision] [Run contained canary / Buy more evidence / Keep current]       |
++--------------------------------------------------------------------------------------------------+
+```
+
+### Interaction rules
+
+1. The current configuration is never hidden; “do nothing” is a first-class option.
+2. The card cannot say `SWITCH` without a compatible baseline and passing contained canary.
+3. `TEST MORE` displays the proposed tasks, configurations, stopping rules, maximum evidence cost, and why the extra evidence could change the decision.
+4. `STAY` identifies whether the candidate failed quality, safety, cost, latency, freshness, or canary guardrails.
+5. “Why not cheapest?” names the failed test or risk boundary rather than treating price as sufficient.
+6. Every number is labelled `OBSERVED`, `PROJECTED`, or `ILLUSTRATIVE`. Projections disclose volume, horizon, price version, evaluation/switching costs, and uncertainty.
+7. The public receipt and replay remain available even when the user dismisses or overrides the recommendation.
+8. Applying a route is never a silent production write. The hackathon action is limited to a contained canary; later customer deployment follows explicit policy authority.
+
+### Phase-aware extension
+
+The task fingerprint includes `research_planning`, `specification`, `execution`, `review`, `refinement`, or `whole_workflow`. The hackathon card compares single-model/reasoning configurations. Post-hackathon, the same card can compare an end-to-end route policy—such as planner, executor, and reviewer configurations—only after Benchpress measures handoff, repeated-context, replanning, escalation, and failure costs.

@@ -1,6 +1,8 @@
 # ADR-004: Vertex AI Multimodal Live Streaming via WebRTC & WebSocket Sidecar
 
-> **Status:** Accepted  
+> **Current disposition (2026-08-28): Post-hackathon option.** Multimodal UI scaffolding exists, but the feature is not part of the authoritative Taskmaster demo unless a genuine Gemini session, synchronized UI behavior, failure recovery, and latency evidence are shown. See the [implementation status](../../00-implementation-status.md).
+
+> **Status:** Proposed / Post-hackathon option
 > **Date:** 2026-08-18  
 > **Deciders:** Lead Multimodal AI UX Designer, Principal Cloud Systems Architect  
 > **Consulted:** Frontend Engineering Team, Vertex AI Specialists  

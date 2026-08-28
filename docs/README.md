@@ -108,7 +108,7 @@ flowchart TB
 
 ## 📑 Complete 12-Folder Master Documentation Taxonomy
 
-The complete documentation suite comprises **64 production-grade technical specifications** organized into 12 core domains:
+The complete documentation suite comprises **66 production-grade technical specifications** organized into 12 core domains:
 
 | Domain | Document Path | Category & Core Topics | Target Hackathon Track |
 | :--- | :--- | :--- | :--- |
@@ -120,6 +120,7 @@ The complete documentation suite comprises **64 production-grade technical speci
 | | [**`05-resilience-and-threat-model.md`**](./architecture/05-resilience-and-threat-model.md) | 12-Failure FMEA Matrix, eBPF Egress Probes & Chaos Test Matrix | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`06-agent-orchestration-and-swarm-topology.md`**](./architecture/06-agent-orchestration-and-swarm-topology.md) | Multi-Agent Swarm Roles, Supervisor-Worker Protocols & Dynamic Delegation | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`07-master-data-schemas-and-er-models.md`**](./architecture/07-master-data-schemas-and-er-models.md) | Master Data Dictionary, Entity-Relationship Models & Protobuf Wire Contracts | 🏛️ **Best Architectural Design** ($5k) |
+| | [**`08-ambient-proactive-routing-and-thinking-governor.md`**](./architecture/08-ambient-proactive-routing-and-thinking-governor.md) | Zero-Click Task Classification & Adaptive Thinking Budget Governance | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`ADR-001-cloud-tasks-vs-pubsub.md`**](./architecture/adrs/ADR-001-cloud-tasks-vs-pubsub.md) | Cloud Tasks vs. Pub/Sub for Deterministic Dispatch | Architectural Rigor |
 | | [**`ADR-002-bigquery-telemetry-storage.md`**](./architecture/adrs/ADR-002-bigquery-telemetry-storage.md) | BigQuery Storage Write API vs. Cloud SQL/Spanner | Architectural Rigor |
 | | [**`ADR-003-hybrid-model-routing-choreography.md`**](./architecture/adrs/ADR-003-hybrid-model-routing-choreography.md) | 2-Tiered Hybrid Routing (Gemini 2.5 Pro + 3.5 Flash) | Architectural Rigor |
@@ -130,6 +131,7 @@ The complete documentation suite comprises **64 production-grade technical speci
 | | [**`ADR-008-jit-credential-broker-and-ebpf.md`**](./architecture/adrs/ADR-008-jit-credential-broker-and-ebpf.md) | JIT 60s Micro-Tokens, Confidential Cloud Run & eBPF Egress | 🛡️ **The Fortified Enterprise Fleet** |
 | | [**`ADR-009-hierarchical-memory-compaction.md`**](./architecture/adrs/ADR-009-hierarchical-memory-compaction.md) | 3-Tier Memory Model & Semantic AST Compactor (>=78.5% Compression) | 🏛️ **Best Architectural Design** ($5k) |
 | | [**`ADR-010-chaos-engineering-resilience-mesh.md`**](./architecture/adrs/ADR-010-chaos-engineering-resilience-mesh.md) | Automated Fault Injection & Chaos Testing Harness in CI/CD | 🏛️ **Best Architectural Design** ($5k) |
+| | [**`ADR-011-ambient-proactive-routing-and-thinking-governor.md`**](./architecture/adrs/ADR-011-ambient-proactive-routing-and-thinking-governor.md) | Ambient Proactive Routing & Adaptive Thinking Budget Governance | 🏛️ **Best Architectural Design** ($5k) |
 | **2. Design & UX** | [**`01-multimodal-ux-spec.md`**](./design/01-multimodal-ux-spec.md) | Tri-Modal UX Philosophy (Voice, Vision OCR, Tactile Canvas) | 🎨 **Best Multimodal UX** ($5k) |
 | | [**`02-design-system-and-tokens.md`**](./design/02-design-system-and-tokens.md) | Obsidian Dark Glassmorphism, Tailwind Tokens & Micro-Animations | 🎨 **Best Multimodal UX** ($5k) |
 | | [**`03-user-journeys-and-wireframes.md`**](./design/03-user-journeys-and-wireframes.md) | Persona Journey Maps & 4 Complete ASCII Wireframes | 🎨 **Best Multimodal UX** ($5k) |

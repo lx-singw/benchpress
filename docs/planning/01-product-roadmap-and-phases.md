@@ -61,3 +61,12 @@ gantt
   - Single-tenant GCP Marketplace Terraform appliance with CMEK encryption and VPC-SC isolation.
   - Custom Enterprise Evaluation Portal allowing Fortune 500 teams to ingest private internal git repos.
   - Automated continuous fine-tuning pipelines using verified agentic execution traces.
+
+---
+
+## 3. Commercial Blueprint, Target Personas & GTM Strategy
+
+For detailed commercial pricing models ($0 Free, $29 Pro, $199 Team, $25k Enterprise), buyer personas (Individual Developers, Scale-up Heads of Engineering, Enterprise AI Platform Leads), zero third-party infrastructure independence, and the 6-month go-to-market execution plan, see the dedicated master specification:
+
+👉 **[`docs/planning/05-commercialization-and-go-to-market-strategy.md`](./05-commercialization-and-go-to-market-strategy.md)**
+

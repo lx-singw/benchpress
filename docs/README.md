@@ -108,7 +108,7 @@ flowchart TB
 
 ## 📑 Complete 12-Folder Master Documentation Taxonomy
 
-The complete documentation suite comprises **57 production-grade technical specifications** organized into 12 core domains:
+The complete documentation suite comprises **61 production-grade technical specifications** organized into 12 core domains:
 
 | Domain | Document Path | Category & Core Topics | Target Hackathon Track |
 | :--- | :--- | :--- | :--- |
@@ -152,6 +152,7 @@ The complete documentation suite comprises **57 production-grade technical speci
 | | [**`02-sprint-backlog-and-epics.md`**](./planning/02-sprint-backlog-and-epics.md) | 5 Epics, User Stories, Gherkin Criteria & Story Points | Project Management |
 | | [**`03-risk-matrix-and-mitigation.md`**](./planning/03-risk-matrix-and-mitigation.md) | 4x4 Enterprise Risk Matrix & SRE Response Playbooks | Risk Governance |
 | | [**`04-finops-and-token-budget-plan.md`**](./planning/04-finops-and-token-budget-plan.md) | Monthly GCP Operating Budget & Unit Economics Margin Model | FinOps & Budget |
+| | [**`05-commercialization-and-go-to-market-strategy.md`**](./planning/05-commercialization-and-go-to-market-strategy.md) | Commercial Strategy, ICP Personas, Pricing Tiers & 6-Month GTM | Venture & Strategy |
 | **8. Implementation** | [**`01-technical-implementation-guide.md`**](./implementation/01-technical-implementation-guide.md) | 2-Service Monorepo Blueprint (`apps/web` + `apps/sandbox-worker`) | ⚙️ **The Taskmaster** |
 | | [**`02-verification-and-testing-plan.md`**](./implementation/02-verification-and-testing-plan.md) | 4-Tier Test Matrix (Vitest, Playwright, Pytest, k6 sub-50ms SLA) | ⚙️ **The Taskmaster** |
 | | [**`03-deployment-runbook-and-ci-cd.md`**](./implementation/03-deployment-runbook-and-ci-cd.md) | Multi-Stage Docker Builds & GitHub Actions Cloud Run Deploy | ⚙️ **The Taskmaster** |

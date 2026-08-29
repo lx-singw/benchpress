@@ -1,0 +1,18 @@
+# ==============================================================================
+# Benchpress: Terraform Deployment Variables Example
+# ==============================================================================
+
+project_id                  = "benchpress-production"
+region                      = "us-central1"
+zone                        = "us-central1-a"
+environment                 = "prod"
+
+# Cloud Run Scaling
+web_min_instances           = 1
+web_max_instances           = 10
+worker_min_instances        = 1
+worker_max_instances        = 20
+
+# Cloud Tasks Rate Limits
+cloud_tasks_dispatch_rate   = 50
+cloud_tasks_max_concurrent  = 100

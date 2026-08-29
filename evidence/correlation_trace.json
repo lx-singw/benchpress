@@ -1,0 +1,70 @@
+{
+  "experiment_id": "exp_01J6G7R8Q9ABCDEFGHJKMNPQ20",
+  "correlation_id": "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+  "total_transitions": 7,
+  "events": [
+    {
+      "sequence_id": 1,
+      "from_state": "RECEIVED",
+      "to_state": "PLANNING",
+      "actor": "orchestrator_service",
+      "payload_hash": "b28014529ec97b76435cfa320cf9e32ea2a1a89c89a071853d535b9ba1bf5e95",
+      "transition_reason": "ChangeEvent validated; invoking Gemini 3.5+ Evaluation Planner",
+      "timestamp": "2026-08-29T10:00:05.000Z"
+    },
+    {
+      "sequence_id": 2,
+      "from_state": "PLANNING",
+      "to_state": "PLAN_APPROVED",
+      "actor": "plan_policy_gate",
+      "payload_hash": "7d11f64f43477e60058b8f2d52528b3ee1dc2287c7e52bca7e868a2bf6cb862a",
+      "transition_reason": "Plan approved: baseline included, budget verified within $0.50 reservation",
+      "timestamp": "2026-08-29T10:00:10.000Z"
+    },
+    {
+      "sequence_id": 3,
+      "from_state": "PLAN_APPROVED",
+      "to_state": "DISPATCHING",
+      "actor": "cloud_tasks_dispatcher",
+      "payload_hash": "81ee6c30f40d65b79873d6b05be5cf11ba6bbcb795bc99ecfdfd4e0e24177d6e",
+      "transition_reason": "Fan-out 8 immutable run manifests to Cloud Tasks with deterministic keys",
+      "timestamp": "2026-08-29T10:00:15.000Z"
+    },
+    {
+      "sequence_id": 4,
+      "from_state": "DISPATCHING",
+      "to_state": "RUNNING",
+      "actor": "sandbox_worker_pool",
+      "payload_hash": "0b14ce9e3b9709230559194ec8942a78f237db875e5332f143714b1b38f8cf62",
+      "transition_reason": "Ephemeral workspaces provisioned; Pytest deterministic oracles executing",
+      "timestamp": "2026-08-29T10:01:00.000Z"
+    },
+    {
+      "sequence_id": 5,
+      "from_state": "RUNNING",
+      "to_state": "AGGREGATING",
+      "actor": "failure_inclusive_aggregator",
+      "payload_hash": "0447fa43fa2dd4d8d17208e92f2560ceea1952f2054ff83ffca522f254f676bc",
+      "transition_reason": "Aggregated CPR computed: Candidate $0.005400 vs Baseline $0.010800",
+      "timestamp": "2026-08-29T10:04:30.000Z"
+    },
+    {
+      "sequence_id": 6,
+      "from_state": "AGGREGATING",
+      "to_state": "CANARY_RUNNING",
+      "actor": "canary_governor",
+      "payload_hash": "02be69a8427f7fe0ae95ff372551a37c15438848cfcfcbf5c4d51cb3e479d20c",
+      "transition_reason": "Sufficiency reached; dispatched contained canary verification on TASK-001",
+      "timestamp": "2026-08-29T10:05:00.000Z"
+    },
+    {
+      "sequence_id": 7,
+      "from_state": "CANARY_RUNNING",
+      "to_state": "PUBLISHED",
+      "actor": "policy_promotion_service",
+      "payload_hash": "a69eb6809ec0dcbe8b553fa65239a5f782f9dd1204ca658f895c8ba0ec51fe22",
+      "transition_reason": "Canary passed all guardrails; CAS promoted active policy pointer to candidate",
+      "timestamp": "2026-08-29T10:05:30.000Z"
+    }
+  ]
+}

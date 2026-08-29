@@ -34,11 +34,13 @@ locals {
   required_services = [
     "run.googleapis.com",
     "cloudtasks.googleapis.com",
+    "firestore.googleapis.com",
     "bigquery.googleapis.com",
     "redis.googleapis.com",
     "artifactregistry.googleapis.com",
     "aiplatform.googleapis.com",
     "storage.googleapis.com",
+    "secretmanager.googleapis.com",
     "vpcaccess.googleapis.com",
   ]
 }

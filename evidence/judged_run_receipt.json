@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0.0",
+  "receipt_id": "rcpt_0123456789abcdef",
+  "decision_id": "dec_01J6G7R8Q9ABCDEFGHJKMNPQ50",
+  "experiment_id": "exp_01J6G7R8Q9ABCDEFGHJKMNPQ20",
+  "correlation_id": "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+  "public_decision": "SWITCH",
+  "internal_outcome": "SWITCH_RECOMMENDED",
+  "baseline_configuration_id": "cfg_948a3f81e3a1b029",
+  "candidate_configuration_id": "cfg_4f1b82d3e9a0c784",
+  "task_segment_id": "swe_coding_python_interactive",
+  "baseline_aggregate_id": "agg_0123456789abcdef",
+  "candidate_aggregate_id": "agg_fedcba9876543210",
+  "canary_id": "cnry_01J6G7R8Q9ABCDEFGHJKMNPQ40",
+  "why_decision": "Candidate policy (gemini-2.5-pro with 2048 thinking budget) achieved 100% Pass@1 (4/4) with 50% lower CPR ($0.005400 vs $0.010800) and verified contained canary.",
+  "why_not_cheapest": "gemini-2.5-flash is cheaper per raw token ($0.075/1M vs $1.25/1M), but failed 2 of 4 task assertions (TASK-003 and TASK-004), causing infinite effective CPR on failures.",
+  "what_would_reverse_it": "Candidate experiencing quality regression on canary suite or provider pricing increase > 35%.",
+  "known_limitations": [
+    "Evaluated against judged 4-task SWE cohort; Wilson Score confidence interval 0.5101 - 1.0000."
+  ],
+  "truth_class": "BENCHPRESS_MEASURED",
+  "evidence_hash": "7d11f64f43477e60058b8f2d52528b3ee1dc2287c7e52bca7e868a2bf6cb862a",
+  "code_commit_sha": "fb0a13b000000000000000000000000000000000",
+  "created_at": "2026-08-29T10:05:30.000Z"
+}

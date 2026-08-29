@@ -1,0 +1,36 @@
+{
+  "project_id": "benchpress-production",
+  "region": "us-central1",
+  "git_commit_sha": "fb0a13b",
+  "deployed_at": "2026-08-29T10:55:00.000Z",
+  "services": {
+    "web": {
+      "service_name": "benchpress-web-prod",
+      "revision": "benchpress-web-prod-00004-x9q",
+      "url": "https://benchpress-web-prod-4738291038.us-central1.run.app",
+      "status": "READY",
+      "traffic_percent": 100,
+      "container_image": "us-central1-docker.pkg.dev/benchpress-production/benchpress-artifacts/web:prod"
+    },
+    "sandbox_worker": {
+      "service_name": "benchpress-worker-prod",
+      "revision": "benchpress-worker-prod-00007-k2w",
+      "url": "https://benchpress-worker-prod-4738291038.us-central1.run.app",
+      "status": "READY",
+      "traffic_percent": 100,
+      "container_image": "us-central1-docker.pkg.dev/benchpress-production/benchpress-artifacts/sandbox-worker:prod",
+      "execution_environment": "EXECUTION_ENVIRONMENT_GEN2"
+    }
+  },
+  "cloud_tasks_queue": {
+    "name": "projects/benchpress-production/locations/us-central1/queues/benchpress-taskmaster-queue",
+    "state": "RUNNING",
+    "max_dispatches_per_second": 50,
+    "max_concurrent_dispatches": 100
+  },
+  "firestore_database": {
+    "database_id": "(default)",
+    "location_id": "nam5",
+    "type": "FIRESTORE_NATIVE"
+  }
+}

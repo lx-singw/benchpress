@@ -25,10 +25,11 @@ Read these documents in order:
 1. [Implementation status](./docs/00-implementation-status.md)
 2. [Authoritative hackathon submission plan](./docs/hackathon/00-authoritative-submission-plan.md)
 3. [Master build roadmap](./docs/planning/00-master-build-roadmap.md)
-4. [Agent and worker architecture](./docs/architecture/06-agent-orchestration-and-swarm-topology.md)
-5. [Model registry and evaluation methodology](./docs/evals/04-multi-model-continuous-harvester-and-deep-profiles.md)
-6. [Hackathon-to-startup roadmap summary](./docs/planning/01-product-roadmap-and-phases.md)
-7. [Complete documentation index](./docs/README.md)
+4. [Submission-critical implementation plan](./docs/planning/06-submission-critical-implementation-plan.md)
+5. [Agent and worker architecture](./docs/architecture/06-agent-orchestration-and-swarm-topology.md)
+6. [Model registry and evaluation methodology](./docs/evals/04-multi-model-continuous-harvester-and-deep-profiles.md)
+7. [Hackathon-to-startup roadmap summary](./docs/planning/01-product-roadmap-and-phases.md)
+8. [Complete documentation index](./docs/README.md)
 
 ## Repository layout
 

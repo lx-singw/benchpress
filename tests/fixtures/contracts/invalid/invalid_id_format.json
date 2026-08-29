@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "event_id": "INVALID_PREFIX_01J6G7R8Q9ABCDEFGHJKMNPQ01",
+  "correlation_id": "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+  "event_type": "PRICE_CHANGE",
+  "source_kind": "PROVIDER_CATALOG",
+  "source_reference": "https://ai.google.dev/pricing",
+  "target_provider": "google",
+  "target_model_family": "gemini-2.5",
+  "changed_fields": ["price_input_per_million_usd"],
+  "source_checksum": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+  "effective_at": "2026-08-29T10:00:00.000Z",
+  "retrieved_at": "2026-08-29T10:00:05.000Z",
+  "baseline_policy_version": "pol_01J6G7R8Q9ABCDEFGHJKMNPQ10",
+  "baseline_configuration_id": "cfg_948a3f81e3a1b029",
+  "max_spend_usd": "2.500000",
+  "deadline_at": "2026-08-29T10:30:00.000Z",
+  "initiator": "catalog_sweep_daemon",
+  "replay": false,
+  "created_at": "2026-08-29T10:00:05.000Z"
+}

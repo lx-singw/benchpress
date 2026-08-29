@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "sequence_id": 1,
+  "experiment_id": "exp_01J6G7R8Q9ABCDEFGHJKMNPQ20",
+  "correlation_id": "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+  "from_state": "RECEIVED",
+  "to_state": "PLANNING",
+  "actor": "orchestrator_daemon",
+  "payload_hash": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+  "transition_reason": "ChangeEvent received and validated; initiating Gemini planning phase",
+  "timestamp": "2026-08-29T10:00:06.000Z"
+}

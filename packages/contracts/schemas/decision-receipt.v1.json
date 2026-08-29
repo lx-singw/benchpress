@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://benchpress.ai/schemas/decision-receipt.v1.json",
+  "title": "DecisionReceipt",
+  "description": "Cryptographically verifiable decision receipt with rationale, limitations, and provenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "decision_id",
+    "experiment_id",
+    "correlation_id",
+    "public_decision",
+    "internal_outcome",
+    "baseline_configuration_id",
+    "candidate_configuration_id",
+    "task_segment_id",
+    "baseline_aggregate_id",
+    "candidate_aggregate_id",
+    "canary_id",
+    "why_decision",
+    "why_not_cheapest",
+    "what_would_reverse_it",
+    "known_limitations",
+    "truth_class",
+    "evidence_hash",
+    "code_commit_sha",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0.0"] },
+    "receipt_id": { "type": "string", "pattern": "^rcpt_[a-f0-9]{16}$" },
+    "decision_id": { "type": "string", "pattern": "^dec_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "experiment_id": { "type": "string", "pattern": "^exp_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "correlation_id": { "type": "string", "pattern": "^corr_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "public_decision": {
+      "type": "string",
+      "enum": ["STAY", "TEST MORE", "SWITCH"]
+    },
+    "internal_outcome": {
+      "type": "string",
+      "enum": [
+        "SWITCH_RECOMMENDED",
+        "STAY_CHEAPEST_FAILED",
+        "STAY_BASELINE_SUPERIOR",
+        "ABSTAIN_INSUFFICIENT_EVIDENCE",
+        "REJECTED_QUALITY_FLOOR",
+        "REJECTED_BUDGET_EXCEEDED",
+        "CANARY_ROLLED_BACK"
+      ]
+    },
+    "baseline_configuration_id": { "type": "string", "pattern": "^cfg_[a-f0-9]{16}$" },
+    "candidate_configuration_id": {
+      "type": ["string", "null"],
+      "pattern": "^cfg_[a-f0-9]{16}$"
+    },
+    "task_segment_id": { "type": "string", "minLength": 1 },
+    "baseline_aggregate_id": { "type": "string", "pattern": "^agg_[a-f0-9]{16}$" },
+    "candidate_aggregate_id": {
+      "type": ["string", "null"],
+      "pattern": "^agg_[a-f0-9]{16}$"
+    },
+    "canary_id": {
+      "type": ["string", "null"],
+      "pattern": "^cnry_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "why_decision": { "type": "string", "minLength": 1 },
+    "why_not_cheapest": { "type": "string", "minLength": 1 },
+    "what_would_reverse_it": { "type": "string", "minLength": 1 },
+    "known_limitations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "truth_class": {
+      "type": "string",
+      "enum": ["BENCHPRESS_MEASURED", "OFFICIAL_SPECIFICATION", "PROJECTED", "ILLUSTRATIVE", "DEMO_FIXTURE"]
+    },
+    "evidence_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "code_commit_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "created_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$" }
+  }
+}

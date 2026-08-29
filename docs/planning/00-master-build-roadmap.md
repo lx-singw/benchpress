@@ -1007,6 +1007,8 @@ Test rather than assume:
 
 ## 27. Immediate next actions
 
+The file-level execution specification for these actions is the [submission-critical implementation plan](./06-submission-critical-implementation-plan.md).
+
 Execute these in order:
 
 1. Freeze the exact hackathon event, baseline, native configurations, 3–5 task cohort, oracle, budget, stop rules, and decision thresholds.

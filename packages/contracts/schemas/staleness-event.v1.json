@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://benchpress.ai/schemas/staleness-event.v1.json",
+  "title": "StalenessEvent",
+  "description": "Policy invalidation notice when model alias, price, tool schema, or benchmark drifts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "correlation_id",
+    "invalidated_policy_version",
+    "invalidated_receipt_id",
+    "task_segment_id",
+    "staleness_reason",
+    "drift_details",
+    "trigger_event_id",
+    "detected_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0.0"] },
+    "event_id": { "type": "string", "pattern": "^evt_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "correlation_id": { "type": "string", "pattern": "^corr_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "invalidated_policy_version": { "type": "string", "pattern": "^pol_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "invalidated_receipt_id": { "type": "string", "pattern": "^rcpt_[a-f0-9]{16}$" },
+    "task_segment_id": { "type": "string", "minLength": 1 },
+    "staleness_reason": {
+      "type": "string",
+      "enum": [
+        "MODEL_SNAPSHOT_UPGRADED",
+        "PRICE_INDEX_CHANGED",
+        "TOOL_SCHEMA_MUTATED",
+        "BENCHMARK_TASK_REVISED",
+        "QUALITY_REGRESSION_DETECTED",
+        "MANUAL_INVALIDATION"
+      ]
+    },
+    "drift_details": { "type": "string", "minLength": 1 },
+    "trigger_event_id": { "type": "string", "pattern": "^evt_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "detected_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$" }
+  }
+}

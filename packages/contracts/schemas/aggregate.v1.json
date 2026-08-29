@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://benchpress.ai/schemas/aggregate.v1.json",
+  "title": "Aggregate",
+  "description": "Evaluated configuration performance metrics, pass rates, CPR ($), latency, and sufficiency status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "aggregate_id",
+    "experiment_id",
+    "correlation_id",
+    "configuration_id",
+    "aggregation_policy_version",
+    "eligible_run_keys",
+    "ineligible_run_keys",
+    "total_attempts",
+    "resolved_count",
+    "failed_count",
+    "pass_rate",
+    "total_cost_usd",
+    "cpr_usd",
+    "mean_latency_ms",
+    "p95_latency_ms",
+    "uncertainty_method",
+    "pass_rate_lower_bound",
+    "pass_rate_upper_bound",
+    "evidence_sufficient",
+    "quality_floor_breached",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0.0"] },
+    "aggregate_id": { "type": "string", "pattern": "^agg_[a-f0-9]{16}$" },
+    "experiment_id": { "type": "string", "pattern": "^exp_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "correlation_id": { "type": "string", "pattern": "^corr_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "configuration_id": { "type": "string", "pattern": "^cfg_[a-f0-9]{16}$" },
+    "aggregation_policy_version": { "type": "string", "minLength": 1 },
+    "eligible_run_keys": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^run_[a-f0-9]{16}$" },
+      "minItems": 1
+    },
+    "ineligible_run_keys": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^run_[a-f0-9]{16}$" }
+    },
+    "total_attempts": { "type": "integer", "minimum": 1 },
+    "resolved_count": { "type": "integer", "minimum": 0 },
+    "failed_count": { "type": "integer", "minimum": 0 },
+    "pass_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "total_cost_usd": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{6}$" },
+    "cpr_usd": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{6}$" },
+    "mean_latency_ms": { "type": "integer", "minimum": 0 },
+    "p95_latency_ms": { "type": "integer", "minimum": 0 },
+    "uncertainty_method": {
+      "type": "string",
+      "enum": ["WILSON_SCORE", "BOOTSTRAP_PERCENTILE", "NOT_COMPUTED_SMALL_SAMPLE"]
+    },
+    "pass_rate_lower_bound": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "pass_rate_upper_bound": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "evidence_sufficient": { "type": "boolean" },
+    "quality_floor_breached": { "type": "boolean" },
+    "created_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$" }
+  }
+}

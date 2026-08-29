@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "aggregate_id": "agg_12345678abcdef01",
+  "experiment_id": "exp_01J6G7R8Q9ABCDEFGHJKMNPQ20",
+  "correlation_id": "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+  "configuration_id": "cfg_4f1b82d3e9a0c784",
+  "aggregation_policy_version": "agg_pol_v1_wilson",
+  "eligible_run_keys": [
+    "run_01a2b3c4d5e6f789",
+    "run_02b3c4d5e6f78901",
+    "run_03c4d5e6f7890123",
+    "run_04d5e6f789012345"
+  ],
+  "ineligible_run_keys": [],
+  "total_attempts": 4,
+  "resolved_count": 3,
+  "failed_count": 1,
+  "pass_rate": 0.75,
+  "total_cost_usd": "0.014500",
+  "cpr_usd": "0.004833",
+  "mean_latency_ms": 2800,
+  "p95_latency_ms": 3400,
+  "uncertainty_method": "WILSON_SCORE",
+  "pass_rate_lower_bound": 0.3006,
+  "pass_rate_upper_bound": 0.9544,
+  "evidence_sufficient": true,
+  "quality_floor_breached": false,
+  "created_at": "2026-08-29T10:00:35.000Z"
+}

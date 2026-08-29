@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "event_id": "evt_01J6G7R8Q9ABCDEFGHJKMNPQ99",
+  "correlation_id": "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+  "invalidated_policy_version": "pol_01J6G7R8Q9ABCDEFGHJKMNPQ10",
+  "invalidated_receipt_id": "rcpt_a1b2c3d4e5f60718",
+  "task_segment_id": "swe_coding_python_interactive",
+  "staleness_reason": "PRICE_INDEX_CHANGED",
+  "drift_details": "Provider reduced price_input_per_million_usd from 1.25 to 1.00 USD",
+  "trigger_event_id": "evt_01J6G7R8Q9ABCDEFGHJKMNPQ01",
+  "detected_at": "2026-08-29T10:01:00.000Z"
+}

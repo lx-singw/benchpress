@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://benchpress.ai/schemas/canary-result.v1.json",
+  "title": "CanaryResult",
+  "description": "Contained canary verification run trace and guardrail evaluation outcomes",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "canary_id",
+    "experiment_id",
+    "correlation_id",
+    "baseline_policy_version",
+    "candidate_policy_version",
+    "canary_task_ids",
+    "baseline_run_keys",
+    "candidate_run_keys",
+    "candidate_passed",
+    "guardrails_evaluated",
+    "guardrails_breached",
+    "promotion_approved",
+    "rollback_triggered",
+    "rollback_reason",
+    "evaluated_at",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0.0"] },
+    "canary_id": { "type": "string", "pattern": "^cnry_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "experiment_id": { "type": "string", "pattern": "^exp_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "correlation_id": { "type": "string", "pattern": "^corr_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "baseline_policy_version": { "type": "string", "pattern": "^pol_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "candidate_policy_version": { "type": "string", "pattern": "^pol_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "canary_task_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "baseline_run_keys": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^run_[a-f0-9]{16}$" },
+      "minItems": 1
+    },
+    "candidate_run_keys": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^run_[a-f0-9]{16}$" },
+      "minItems": 1
+    },
+    "candidate_passed": { "type": "boolean" },
+    "guardrails_evaluated": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "guardrails_breached": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "promotion_approved": { "type": "boolean" },
+    "rollback_triggered": { "type": "boolean" },
+    "rollback_reason": { "type": "string" },
+    "evaluated_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$" },
+    "created_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$" }
+  }
+}

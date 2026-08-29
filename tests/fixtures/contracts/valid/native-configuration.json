@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "configuration_id": "cfg_4f1b82d3e9a0c784",
+  "provider": "google",
+  "request_model": "gemini-2.5-pro",
+  "resolved_model_snapshot": "gemini-2.5-pro-002",
+  "thinking_budget_tokens": 2048,
+  "temperature": 0.0,
+  "top_p": 1.0,
+  "max_output_tokens": 8192,
+  "system_instruction_hash": "c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2",
+  "tool_schema_hash": "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3",
+  "price_input_per_million_usd": "1.250000",
+  "price_output_per_million_usd": "5.000000",
+  "price_source_version": "2026-08-29",
+  "created_at": "2026-08-29T10:00:15.000Z"
+}

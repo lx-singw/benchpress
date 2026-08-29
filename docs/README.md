@@ -24,9 +24,10 @@ Read in this order:
 1. [Current implementation status](./00-implementation-status.md) — what exists, what is simulated, and what is missing.
 2. [Hackathon submission plan](./hackathon/00-authoritative-submission-plan.md) — the exact judged scope and definition of done.
 3. [Master build roadmap](./planning/00-master-build-roadmap.md) — complete hackathon and 24-month execution plan, sprint schedule, gates, epics, controls, and commercialization sequence.
-4. [Agent orchestration architecture](./architecture/06-agent-orchestration-and-swarm-topology.md) — one Gemini orchestrator and parallel controlled workers.
-5. [Model registry and evaluation methodology](./evals/04-multi-model-continuous-harvester-and-deep-profiles.md) — how provider facts and measured results are acquired and published.
-6. [Hackathon-to-startup roadmap](./planning/01-product-roadmap-and-phases.md) — concise staged product and commercial summary.
+4. [Submission-critical implementation plan](./planning/06-submission-critical-implementation-plan.md) — file-level execution specification, contracts, state machines, tests, deployment, evidence, and release gates for the judged path.
+5. [Agent orchestration architecture](./architecture/06-agent-orchestration-and-swarm-topology.md) — one Gemini orchestrator and parallel controlled workers.
+6. [Model registry and evaluation methodology](./evals/04-multi-model-continuous-harvester-and-deep-profiles.md) — how provider facts and measured results are acquired and published.
+7. [Hackathon-to-startup roadmap](./planning/01-product-roadmap-and-phases.md) — concise staged product and commercial summary.
 
 ## Core proof crosswalk
 
@@ -42,6 +43,7 @@ The strengthened judged workflow is documented once at the level where it is aut
 | Four-minute visible proof | [Demo script](./hackathon/02-demo-video-script.md) |
 | Submission and optional-bonus release gates | [Final checklist](./hackathon/04-final-submission-checklist.md) |
 | Full build timeline, sprints, epics, release gates, controls, and post-hackathon sequence | [Master build roadmap](./planning/00-master-build-roadmap.md) |
+| File-level implementation sequence, contracts, transaction semantics, tests, deployment, and evidence | [Submission-critical implementation plan](./planning/06-submission-critical-implementation-plan.md) |
 | Concise post-hackathon product sequence | [Roadmap summary](./planning/01-product-roadmap-and-phases.md) |
 
 ## Hackathon submission documents

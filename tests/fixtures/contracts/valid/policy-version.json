@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "policy_version": "pol_01J6G7R8Q9ABCDEFGHJKMNPQ40",
+  "task_segment_id": "swe_coding_python_interactive",
+  "configuration_id": "cfg_4f1b82d3e9a0c784",
+  "is_active": true,
+  "state_version": 2,
+  "parent_policy_version": "pol_01J6G7R8Q9ABCDEFGHJKMNPQ10",
+  "promoted_by_decision_id": "dec_01J6G7R8Q9ABCDEFGHJKMNPQ50",
+  "promoted_at": "2026-08-29T10:00:45.000Z",
+  "created_at": "2026-08-29T10:00:40.000Z"
+}

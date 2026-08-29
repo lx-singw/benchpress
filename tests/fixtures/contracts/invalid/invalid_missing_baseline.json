@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "plan_9f8e7d6c5b4a3210",
+  "experiment_id": "exp_01J6G7R8Q9ABCDEFGHJKMNPQ20",
+  "correlation_id": "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+  "event_id": "evt_01J6G7R8Q9ABCDEFGHJKMNPQ01",
+  "fingerprint_id": "fp_1a2b3c4d5e6f7a8b",
+  "candidate_configuration_ids": [
+    "cfg_4f1b82d3e9a0c784"
+  ],
+  "task_cohort_version": "cohort_swe_judged_v1",
+  "selected_task_ids": ["TASK-001"],
+  "repetitions_per_task": 1,
+  "max_matrix_spend_usd": "0.500000",
+  "reserved_budget_usd": "0.750000",
+  "per_run_timeout_seconds": 60,
+  "max_turns_per_run": 15,
+  "quality_floor_pass_rate": 0.75,
+  "early_stop_consecutive_failures": 2,
+  "planner_model": "gemini-2.5-pro",
+  "plan_policy_version": "plan_pol_v1_taskmaster",
+  "planning_rationale": "Missing baseline configuration test",
+  "created_at": "2026-08-29T10:00:20.000Z"
+}

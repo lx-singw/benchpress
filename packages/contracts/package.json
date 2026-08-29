@@ -1,0 +1,22 @@
+{
+  "name": "@benchpress/contracts",
+  "version": "1.0.0",
+  "description": "Sovereign interchange contracts, Zod validators, and canonical RFC 8785 hashing for Benchpress",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx tests/contracts.test.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ulid": "^2.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.3"
+  }
+}

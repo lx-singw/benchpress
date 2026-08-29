@@ -1,0 +1,175 @@
+"""
+Gemini Provider Adapter & Coding Tools.
+Executes code edits and inspection using Google GenAI SDK with structured function calling.
+"""
+
+import os
+import time
+import logging
+from typing import Dict, Any, List, Optional
+from .provider_adapter import BaseProviderAdapter, ProviderTurnResult, ProviderUsage
+
+logger = logging.getLogger("benchpress.execution.gemini")
+
+# Standard Coding Tools for Benchmarking Tasks
+CODING_TOOLS_DECLARATIONS = [
+    {
+        "name": "view_file",
+        "description": "View file content in sandbox workspace with line bounds.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "path": {"type": "STRING", "description": "Relative file path within workspace."},
+                "start_line": {"type": "INTEGER", "description": "1-indexed starting line."},
+                "end_line": {"type": "INTEGER", "description": "1-indexed ending line."}
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "edit_hunk",
+        "description": "Replace a single exact target content hunk in a file with replacement content.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "path": {"type": "STRING", "description": "Relative file path within workspace."},
+                "target_content": {"type": "STRING", "description": "Exact text chunk to replace."},
+                "replacement_content": {"type": "STRING", "description": "New replacement text."}
+            },
+            "required": ["path", "target_content", "replacement_content"]
+        }
+    },
+    {
+        "name": "run_bash",
+        "description": "Run an allowlisted non-destructive read command (ls, cat, grep, find).",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "command": {"type": "STRING", "description": "Command string to execute."}
+            },
+            "required": ["command"]
+        }
+    }
+]
+
+
+class GeminiProviderAdapter(BaseProviderAdapter):
+    """Google GenAI SDK provider adapter for benchmark task execution."""
+
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        self.client = None
+        self._init_client()
+
+    def _init_client(self):
+        if self.api_key:
+            try:
+                from google import genai
+                self.client = genai.Client(api_key=self.api_key)
+                logger.info("Initialized live Google GenAI Client for execution")
+            except Exception as e:
+                logger.warning(f"Failed to initialize google.genai: {e}. Using mock runner.")
+                self.client = None
+
+    def execute_turn(
+        self,
+        system_instruction: str,
+        contents: List[Any],
+        tools: Optional[List[Dict[str, Any]]] = None,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> ProviderTurnResult:
+        model = config.get("request_model", "gemini-2.5-pro") if config else "gemini-2.5-pro"
+        start_time = time.perf_counter()
+
+        if not self.client:
+            # Deterministic simulation runner for offline tests
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
+            return self._mock_turn_response(contents, model, latency_ms)
+
+        try:
+            from google.genai import types
+
+            gemini_tools = tools or CODING_TOOLS_DECLARATIONS
+            temp = float(config.get("temperature", 0.0)) if config else 0.0
+            thinking_budget = int(config.get("thinking_budget_tokens", 0)) if config else 0
+
+            gen_config = types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=temp,
+                tools=gemini_tools,
+            )
+
+            response = self.client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=gen_config,
+            )
+
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
+
+            # Parse usage
+            usage_meta = response.usage_metadata
+            p_tokens = getattr(usage_meta, "prompt_token_count", 0) or 0
+            c_tokens = getattr(usage_meta, "candidates_token_count", 0) or 0
+            r_tokens = getattr(usage_meta, "thoughts_token_count", 0) or 0
+            tot_tokens = getattr(usage_meta, "total_token_count", p_tokens + c_tokens) or 0
+
+            tool_calls = []
+            if response.function_calls:
+                for fc in response.function_calls:
+                    tool_calls.append({
+                        "name": fc.name,
+                        "args": dict(fc.args) if hasattr(fc, "args") else {},
+                    })
+
+            return ProviderTurnResult(
+                text=response.text if hasattr(response, "text") else None,
+                tool_calls=tool_calls,
+                usage=ProviderUsage(
+                    prompt_tokens=p_tokens,
+                    completion_tokens=c_tokens,
+                    reasoning_tokens=r_tokens,
+                    cached_tokens=0,
+                    total_tokens=tot_tokens,
+                    latency_ms=latency_ms,
+                ),
+                finish_reason="STOP",
+            )
+
+        except Exception as e:
+            logger.error(f"GeminiProviderAdapter execution error: {e}")
+            raise
+
+    def _mock_turn_response(self, contents: List[Any], model: str, latency_ms: int) -> ProviderTurnResult:
+        """Simulate model edit behaviour for offline testing."""
+        # Check turn count from conversation length
+        turns = len(contents)
+        tool_calls = []
+
+        if turns == 1:
+            # Turn 1: view files
+            tool_calls = [{"name": "view_file", "args": {"path": "security.py", "start_line": 1, "end_line": 20}}]
+        elif turns == 3:
+            # Turn 2: edit bug if thinking budget is active or pro model
+            tool_calls = [{
+                "name": "edit_hunk",
+                "args": {
+                    "path": "security.py",
+                    "target_content": "return self.min_val <= value < self.max_val",
+                    "replacement_content": "return self.min_val <= value <= self.max_val"
+                }
+            }]
+
+        return ProviderTurnResult(
+            text="Completed turn analysis.",
+            tool_calls=tool_calls,
+            usage=ProviderUsage(
+                prompt_tokens=420 + (turns * 100),
+                completion_tokens=150,
+                reasoning_tokens=64 if "pro" in model else 0,
+                cached_tokens=0,
+                total_tokens=570 + (turns * 100),
+                latency_ms=max(latency_ms, 120),
+            ),
+            finish_reason="STOP",
+        )

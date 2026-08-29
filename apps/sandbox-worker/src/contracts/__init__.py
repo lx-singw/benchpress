@@ -46,6 +46,7 @@ from .hashing import (
     generate_logical_run_key,
     generate_aggregate_id,
     generate_receipt_id,
+    generate_ulid,
     utc_now_rfc3339,
 )
 
@@ -88,5 +89,6 @@ __all__ = [
     "generate_logical_run_key",
     "generate_aggregate_id",
     "generate_receipt_id",
+    "generate_ulid",
     "utc_now_rfc3339",
 ]

@@ -1,13 +1,36 @@
 """
-RFC 8785 Canonical JSON Hashing and Canonical ID Generators for Benchpress.
+RFC 8785 Canonical JSON Hashing, ULID, and Canonical ID Generators for Benchpress.
 Guarantees byte-for-byte cross-language hash parity with TypeScript @benchpress/contracts.
 """
 
+import os
+import time
 import hashlib
 import json
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 from pydantic import BaseModel
+
+CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def generate_ulid() -> str:
+    """Generate a valid 26-character Crockford Base32 ULID matching ^[0-9A-HJKMNP-TV-Z]{26}$."""
+    t = int(time.time() * 1000)
+    t_chars = []
+    for _ in range(10):
+        t_chars.append(CROCKFORD_BASE32[t % 32])
+        t //= 32
+    time_part = "".join(reversed(t_chars))
+
+    rand_bytes = os.urandom(10)
+    rand_int = int.from_bytes(rand_bytes, "big")
+    r_chars = []
+    for _ in range(16):
+        r_chars.append(CROCKFORD_BASE32[rand_int % 32])
+        rand_int //= 32
+    rand_part = "".join(reversed(r_chars))
+    return f"{time_part}{rand_part}"
 
 
 def utc_now_rfc3339() -> str:

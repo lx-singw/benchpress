@@ -17,15 +17,24 @@ from fsm.engine import AsyncFSMRunner
 from security.task_auth import verify_task_request
 from orchestrator.service import OrchestratorService
 from idempotency.service import IdempotencyService
-from contracts.models import RunManifest, RunResult
+from execution.run_service import RunExecutionService
+from aggregation.aggregator import ConfigurationAggregator
+from aggregation.sufficiency import SufficiencyEvaluator
+from policy.canary import CanaryExecutor
+from policy.promotion import PolicyPromotionService
+from policy.rollback import PolicyRollbackService
+from policy.repository import get_policy_repository
+from ledger.firestore import get_ledger
+from contracts.models import RunManifest, RunResult, Aggregate, CanaryResult, DecisionReceipt
+from contracts.states import ExperimentState, InternalOutcome, PublicDecision
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("benchpress.worker")
 
 app = FastAPI(
-    title="Benchpress Sandbox Worker & Orchestrator",
+    title="Benchpress Sandbox Worker & Policy Governor",
     version="1.0.0",
-    description="Cloud Run Gen2 Evaluation Orchestrator, Task Dispatcher & FSM Execution Engine",
+    description="Cloud Run Gen2 Evaluation Orchestrator, Sandboxed Execution & Policy Promotion Engine",
 )
 
 app.add_middleware(
@@ -38,12 +47,38 @@ app.add_middleware(
 
 orchestrator_service = OrchestratorService()
 idempotency_service = IdempotencyService()
+run_execution_service = RunExecutionService()
+aggregator = ConfigurationAggregator()
+sufficiency_evaluator = SufficiencyEvaluator()
+canary_executor = CanaryExecutor()
+promotion_service = PolicyPromotionService()
+rollback_service = PolicyRollbackService()
+policy_repo = get_policy_repository()
+ledger = get_ledger()
 
 
 class OrchestrateRequest(BaseModel):
     event_id: str
     correlation_id: str
     segment_id: str = "swe_coding_python_interactive"
+
+
+class AggregateRequest(BaseModel):
+    experiment_id: str
+    correlation_id: str
+    baseline_configuration_id: str
+    candidate_configuration_id: str
+    task_segment_id: str = "swe_coding_python_interactive"
+
+
+class CanaryRequest(BaseModel):
+    experiment_id: str
+    correlation_id: str
+    task_segment_id: str = "swe_coding_python_interactive"
+    baseline_policy_version: str
+    candidate_policy_version: str
+    candidate_configuration_id: str
+    canary_task_id: str = "TASK-001"
 
 
 class TrajectoryTaskPayload(BaseModel):
@@ -56,13 +91,12 @@ class TrajectoryTaskPayload(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
-# Active WebSocket connections dictionary: trajectory_id -> List[WebSocket]
 active_connections: Dict[str, List[WebSocket]] = {}
 
 
 @app.get("/healthz")
 async def health_check():
-    """Liveness and readiness probe for Cloud Run Gen2."""
+    """Liveness probe."""
     return {
         "status": "healthy",
         "service": "benchpress-sandbox-worker",
@@ -79,7 +113,6 @@ async def orchestrate_evaluation(
 ):
     """
     Cloud Tasks Target for Sovereign Evaluation Planning.
-    Invokes Gemini 3.5+ planner, validates plan policy, persists RunManifests, and dispatches tasks.
     """
     logger.info(f"[Worker] Received /orchestrate for event '{payload.event_id}' (corr: {payload.correlation_id})")
     result = await orchestrator_service.orchestrate(
@@ -87,8 +120,6 @@ async def orchestrate_evaluation(
         correlation_id=payload.correlation_id,
         segment_id=payload.segment_id,
     )
-    if result.get("status") == "PLAN_REJECTED":
-        return result
     return result
 
 
@@ -99,23 +130,21 @@ async def execute_run(
     x_worker_id: Optional[str] = Header(None),
 ):
     """
-    Cloud Tasks Target for Immutable Single-Run Execution with CAS Idempotency.
+    Cloud Tasks Target for Sandboxed Run Execution with CAS Idempotency.
     """
     worker_id = x_worker_id or f"worker_instance_{os.getpid()}"
     logger.info(f"[Worker] Received /execute-run for run_key '{manifest.logical_run_key}' (worker: {worker_id})")
 
-    async def _dummy_execution():
-        # Execution placeholder wired to full run_service in Sprint 3 (IMP-04)
-        return {
-            "logical_run_key": manifest.logical_run_key,
-            "status": "SUCCEEDED",
-            "resolved": True,
-        }
+    async def _execute_sandboxed():
+        return await run_execution_service.execute_run(
+            manifest=manifest,
+            worker_id=worker_id,
+        )
 
     outcome = await idempotency_service.execute_idempotent_run(
         run_key=manifest.logical_run_key,
         worker_id=worker_id,
-        execution_coro=_dummy_execution,
+        execution_coro=_execute_sandboxed,
     )
 
     if outcome.get("status") == "LEASE_HELD":
@@ -126,7 +155,112 @@ async def execute_run(
     return outcome
 
 
-# Legacy / Prototype endpoints preserved for backward compatibility
+@app.post("/aggregate")
+async def aggregate_experiment_results(
+    payload: AggregateRequest,
+    authenticated: bool = Depends(verify_task_request),
+):
+    """
+    Cloud Tasks Target for Aggregation, Stopping Evaluation and Sufficiency Decision.
+    """
+    logger.info(f"[Worker] Received /aggregate for experiment '{payload.experiment_id}'")
+
+    # Fetch all run results for experiment from ledger
+    all_results = [
+        RunResult.model_validate(res)
+        for res in ledger.results.values()
+        if res.get("experiment_id") == payload.experiment_id
+    ]
+
+    base_results = [r for r in all_results if r.configuration_id == payload.baseline_configuration_id]
+    cand_results = [r for r in all_results if r.configuration_id == payload.candidate_configuration_id]
+
+    if not base_results or not cand_results:
+        return {
+            "status": "AWAITING_RUNS",
+            "experiment_id": payload.experiment_id,
+            "baseline_runs_count": len(base_results),
+            "candidate_runs_count": len(cand_results),
+        }
+
+    base_agg = aggregator.aggregate_runs(
+        experiment_id=payload.experiment_id,
+        correlation_id=payload.correlation_id,
+        configuration_id=payload.baseline_configuration_id,
+        results=base_results,
+    )
+
+    cand_agg = aggregator.aggregate_runs(
+        experiment_id=payload.experiment_id,
+        correlation_id=payload.correlation_id,
+        configuration_id=payload.candidate_configuration_id,
+        results=cand_results,
+    )
+
+    outcome = sufficiency_evaluator.evaluate_outcome(base_agg, cand_agg)
+
+    ledger.update_experiment_state(
+        experiment_id=payload.experiment_id,
+        target_state=ExperimentState.AGGREGATING,
+        reason=f"Aggregation computed. Outcome: {outcome.value}",
+    )
+
+    return {
+        "status": "AGGREGATED",
+        "experiment_id": payload.experiment_id,
+        "internal_outcome": outcome.value,
+        "baseline_aggregate": base_agg.model_dump(mode="json"),
+        "candidate_aggregate": cand_agg.model_dump(mode="json"),
+    }
+
+
+@app.post("/canary")
+async def execute_canary_evaluation(
+    payload: CanaryRequest,
+    authenticated: bool = Depends(verify_task_request),
+):
+    """
+    Cloud Tasks Target for Contained Canary Verification and Atomic Policy Promotion.
+    """
+    logger.info(f"[Worker] Received /canary for candidate '{payload.candidate_policy_version}'")
+
+    canary_result = await canary_executor.execute_canary(
+        experiment_id=payload.experiment_id,
+        correlation_id=payload.correlation_id,
+        baseline_policy_version=payload.baseline_policy_version,
+        candidate_policy_version=payload.candidate_policy_version,
+        candidate_config_id=payload.candidate_configuration_id,
+        canary_task_id=payload.canary_task_id,
+    )
+
+    # Fetch aggregates from ledger
+    base_agg_dict = next(
+        (a for a in ledger.results.values() if a.get("configuration_id") != payload.candidate_configuration_id),
+        None
+    )
+
+    # If canary passes -> Promote
+    if canary_result.promotion_approved:
+        ledger.update_experiment_state(
+            experiment_id=payload.experiment_id,
+            target_state=ExperimentState.DECIDED_PROMOTED,
+            reason="Canary passed all guardrails. Policy promoted.",
+        )
+    else:
+        ledger.update_experiment_state(
+            experiment_id=payload.experiment_id,
+            target_state=ExperimentState.DECIDED_STAY,
+            reason=f"Canary failed: {canary_result.rollback_reason}",
+        )
+
+    return {
+        "status": "CANARY_COMPLETED",
+        "experiment_id": payload.experiment_id,
+        "canary_result": canary_result.model_dump(mode="json"),
+    }
+
+
+# Legacy endpoints
 @app.post("/execute-task")
 async def execute_trajectory_task(
     payload: TrajectoryTaskPayload,
@@ -134,11 +268,6 @@ async def execute_trajectory_task(
     x_cloudtasks_queuename: Optional[str] = Header(None),
     x_benchpress_hmac: Optional[str] = Header(None),
 ):
-    """Legacy Cloud Tasks Target for prototype asynchronous runs."""
-    logger.info(
-        f"[Worker] Received legacy task {payload.trajectory_id} for model {payload.model_id}"
-    )
-
     if not settings.use_local_mock and x_benchpress_hmac:
         expected_sig = hmac.new(
             settings.benchpress_hmac_secret.encode(),

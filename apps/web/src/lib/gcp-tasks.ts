@@ -2,6 +2,8 @@
  * Cloud Tasks Dispatcher with Pluggable Adapter Pattern & Zero-Config Local Fallback.
  */
 
+import { CloudTasksClient } from "@google-cloud/tasks";
+
 export interface TrajectoryTaskMessage {
   trajectoryId: string;
   taskSuite: string;
@@ -17,19 +19,19 @@ export interface ITaskQueue {
 }
 
 class GcpCloudTasksAdapter implements ITaskQueue {
-  private client: any;
+  private client: CloudTasksClient;
   private queuePath: string;
   private workerUrl: string;
+  private workerTaskUrl: string;
 
   constructor() {
-    // Dynamic import / instantiation to avoid hard failure when GCP credentials are not set
-    const { CloudTasksClient } = require("@google-cloud/tasks");
     this.client = new CloudTasksClient();
     const project = process.env.GOOGLE_CLOUD_PROJECT || "benchpress-dev";
     const location = process.env.GCP_TASKS_LOCATION || "us-central1";
     const queue = process.env.GCP_TASKS_QUEUE_NAME || "trajectory-execution-queue";
     this.queuePath = this.client.queuePath(project, location, queue);
-    this.workerUrl = process.env.SANDBOX_WORKER_URL || "http://localhost:8080/execute-task";
+    this.workerUrl = (process.env.SANDBOX_WORKER_URL || "http://localhost:8080").replace(/\/$/, "");
+    this.workerTaskUrl = `${this.workerUrl}/execute-task`;
   }
 
   async enqueueTrajectoryTask(message: TrajectoryTaskMessage): Promise<{ taskId: string; queueName: string }> {
@@ -42,17 +44,25 @@ class GcpCloudTasksAdapter implements ITaskQueue {
       max_turns: message.maxTurns,
     });
 
-    const task = {
-      httpRequest: {
+    const httpRequest: any = {
         httpMethod: "POST" as const,
-        url: this.workerUrl,
+        url: this.workerTaskUrl,
         headers: {
           "Content-Type": "application/json",
           "X-Benchpress-Trajectory-ID": message.trajectoryId,
         },
         body: Buffer.from(payload).toString("base64"),
-      },
     };
+
+    const invokerServiceAccount = process.env.GCP_TASKS_INVOKER_SERVICE_ACCOUNT;
+    if (invokerServiceAccount) {
+      httpRequest.oidcToken = {
+        serviceAccountEmail: invokerServiceAccount,
+        audience: this.workerUrl,
+      };
+    }
+
+    const task = { httpRequest };
 
     const [response] = await this.client.createTask({
       parent: this.queuePath,
@@ -110,16 +120,11 @@ let taskQueueInstance: ITaskQueue | null = null;
 export function getTaskQueue(): ITaskQueue {
   if (taskQueueInstance) return taskQueueInstance;
 
-  const useMock = process.env.USE_LOCAL_MOCK === "true" || !process.env.GOOGLE_CLOUD_PROJECT;
+  const useMock = process.env.USE_LOCAL_MOCK === "true";
   if (useMock) {
     taskQueueInstance = new MockTaskQueueAdapter();
   } else {
-    try {
-      taskQueueInstance = new GcpCloudTasksAdapter();
-    } catch {
-      console.warn("[TaskQueue] Falling back to MockTaskQueueAdapter due to GCP initialization error");
-      taskQueueInstance = new MockTaskQueueAdapter();
-    }
+    taskQueueInstance = new GcpCloudTasksAdapter();
   }
 
   return taskQueueInstance;

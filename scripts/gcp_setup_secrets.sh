@@ -60,8 +60,9 @@ if [ -z "$GEMINI_API_KEY" ]; then
 fi
 
 if [ -z "$GEMINI_API_KEY" ]; then
-  echo "ℹ️ No GEMINI_API_KEY provided. Using development mock key for ${ENV_UPPER} Secret Manager."
-  GEMINI_API_KEY="mock-gemini-key-${ENV}-2026"
+  echo "❌ GEMINI_API_KEY is required for a real cloud deployment."
+  echo "   Provide --gemini-api-key or set GEMINI_API_KEY in the environment."
+  exit 1
 fi
 
 # 2. Provision GEMINI_API_KEY_${ENV}

@@ -50,10 +50,27 @@ resource "google_cloud_run_v2_service" "web" {
         value = var.region
       }
       env {
-        name  = "TASKS_QUEUE_NAME"
+        name  = "USE_LOCAL_MOCK"
+        value = "false"
+      }
+      env {
+        name  = "GCP_TASKS_QUEUE_NAME"
         value = "${var.environment}-trajectory-queue"
       }
+      env {
+        name  = "SANDBOX_WORKER_URL"
+        value = google_cloud_run_v2_service.sandbox_worker.uri
+      }
+      env {
+        name  = "GCP_TASKS_INVOKER_SERVICE_ACCOUNT"
+        value = google_service_account.cloud_tasks_invoker.email
+      }
     }
+  }
+
+  lifecycle {
+    # Set by imperative gcloud image rollouts; not part of the desired service config.
+    ignore_changes = [client, client_version]
   }
 
   depends_on = [
@@ -107,7 +124,36 @@ resource "google_cloud_run_v2_service" "sandbox_worker" {
         name  = "GCP_REGION"
         value = var.region
       }
+      env {
+        name  = "USE_LOCAL_MOCK"
+        value = "false"
+      }
+      env {
+        name = "GEMINI_API_KEY"
+
+        value_source {
+          secret_key_ref {
+            secret  = "GEMINI_API_KEY_${upper(var.environment)}"
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "BENCHPRESS_HMAC_SECRET"
+
+        value_source {
+          secret_key_ref {
+            secret  = "BENCHPRESS_HMAC_SECRET_${upper(var.environment)}"
+            version = "latest"
+          }
+        }
+      }
     }
+  }
+
+  lifecycle {
+    # Set by imperative gcloud image rollouts; not part of the desired service config.
+    ignore_changes = [client, client_version]
   }
 
   depends_on = [

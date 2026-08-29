@@ -11,7 +11,6 @@ resource "google_cloud_tasks_queue" "trajectory_dispatch" {
     # Rate limits: 10/s in dev to protect quota, up to 500/s in prod for load surges
     max_dispatches_per_second = var.cloud_tasks_dispatch_rate
     max_concurrent_dispatches = var.cloud_tasks_max_concurrent
-    max_burst_size            = var.cloud_tasks_dispatch_rate
   }
 
   retry_config {

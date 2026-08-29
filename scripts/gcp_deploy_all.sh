@@ -124,6 +124,7 @@ if [ "$SKIP_TERRAFORM" = false ]; then
     cd infra/terraform
     terraform init -input=false
     terraform apply \
+      -target=google_artifact_registry_repository.benchpress_repo \
       -var-file="environments/${ENV}.tfvars" \
       -var="project_id=${PROJECT_ID}" \
       -var="region=${REGION}" \
@@ -143,10 +144,25 @@ if [ "$SKIP_DOCKER" = false ]; then
   WORKER_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/benchpress-artifacts/sandbox-worker:${ENV}"
 
   echo "  • [1/2] Building Next.js 15 Web Platform: $WEB_IMAGE"
-  docker build -t "$WEB_IMAGE" -f apps/web/Dockerfile . || echo "    (Local Docker daemon not active - build skipped)"
+  docker build -t "$WEB_IMAGE" -f apps/web/Dockerfile .
+  docker push "$WEB_IMAGE"
 
   echo "  • [2/2] Building Python 3.12 gVisor Worker: $WORKER_IMAGE"
-  docker build -t "$WORKER_IMAGE" -f apps/sandbox-worker/Dockerfile . || echo "    (Local Docker daemon not active - build skipped)"
+  docker build -t "$WORKER_IMAGE" -f apps/sandbox-worker/Dockerfile .
+  docker push "$WORKER_IMAGE"
+
+  if [ "$SKIP_TERRAFORM" = false ]; then
+    echo ""
+    echo "📦 Applying the full Terraform stack after container images are available..."
+    cd infra/terraform
+    terraform apply \
+      -var-file="environments/${ENV}.tfvars" \
+      -var="project_id=${PROJECT_ID}" \
+      -var="region=${REGION}" \
+      -auto-approve \
+      -input=false
+    cd ../..
+  fi
 else
   echo "⏩ Skipping Docker build/push (--skip-docker)"
 fi

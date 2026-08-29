@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
   transpilePackages: ["@benchpress/sdk", "@benchpress/telemetry"],
+  serverExternalPackages: ["@google-cloud/tasks", "@google-cloud/firestore"],
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",

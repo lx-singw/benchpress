@@ -23,7 +23,7 @@ resource "google_access_context_manager_service_perimeter" "enterprise_perimeter
 
     vpc_accessible_services {
       enable_restriction = true
-      allowed_services   = [
+      allowed_services = [
         "run.googleapis.com",
         "bigquery.googleapis.com",
         "firestore.googleapis.com",

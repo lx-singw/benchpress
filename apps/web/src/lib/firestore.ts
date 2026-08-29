@@ -2,6 +2,7 @@
  * Firestore Database Client with Pluggable Adapter Pattern & In-Memory Fallback.
  */
 
+import { Firestore } from "@google-cloud/firestore";
 import { TrajectoryStatus } from "@benchpress/telemetry";
 
 export interface TrajectoryDoc {
@@ -26,11 +27,10 @@ export interface IDatabase {
 }
 
 class GcpFirestoreAdapter implements IDatabase {
-  private db: any;
+  private db: Firestore;
   private collectionName = "trajectories";
 
   constructor() {
-    const { Firestore } = require("@google-cloud/firestore");
     this.db = new Firestore();
   }
 
@@ -79,16 +79,11 @@ let dbInstance: IDatabase | null = null;
 export function getDatabase(): IDatabase {
   if (dbInstance) return dbInstance;
 
-  const useMock = process.env.USE_LOCAL_MOCK === "true" || !process.env.GOOGLE_CLOUD_PROJECT;
+  const useMock = process.env.USE_LOCAL_MOCK === "true";
   if (useMock) {
     dbInstance = new InMemoryDatabaseAdapter();
   } else {
-    try {
-      dbInstance = new GcpFirestoreAdapter();
-    } catch {
-      console.warn("[Database] Falling back to InMemoryDatabaseAdapter due to Firestore initialization error");
-      dbInstance = new InMemoryDatabaseAdapter();
-    }
+    dbInstance = new GcpFirestoreAdapter();
   }
 
   return dbInstance;

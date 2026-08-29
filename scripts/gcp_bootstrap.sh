@@ -40,25 +40,25 @@ echo "   BENCHPRESS: GOOGLE CLOUD BOOTSTRAP & API ENABLEMENT"
 echo "   Target Project: $PROJECT_ID | Region: $REGION"
 echo "=================================================================="
 
-# 1. Verify Prerequisites
+# 1. Verify prerequisites and authenticate the target project.
 echo ""
 echo "🔍 Step 1: Verifying required CLI tools..."
-for tool in gcloud docker terraform; do
-  if command -v "$tool" >/dev/null 2>&1; then
-    echo "   ✓ $tool is installed ($($tool --version 2>&1 | head -n 1))"
-  else
-    echo "   ⚠️ Warning: $tool is not installed or not in PATH."
-  fi
-done
+if ! command -v gcloud >/dev/null 2>&1; then
+  echo "❌ gcloud is required to bootstrap a real cloud environment."
+  exit 1
+fi
+gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q . || {
+  echo "❌ No active gcloud account. Run 'gcloud auth login' first."
+  exit 1
+}
+gcloud projects describe "$PROJECT_ID" --format="value(projectId)" >/dev/null
 
 # 2. Configure Active GCP Project
 echo ""
 echo "⚙️ Step 2: Configuring active gcloud project to '$PROJECT_ID'..."
-if command -v gcloud >/dev/null 2>&1; then
-  gcloud config set project "$PROJECT_ID" --quiet || echo "   (Skipped gcloud config in offline/mock environment)"
-fi
+gcloud config set project "$PROJECT_ID" --quiet
 
-# 3. Batch-Enable All 9 Required GCP APIs
+# 3. Batch-enable every API used by the primary Terraform stack and application.
 echo ""
 echo "🔌 Step 3: Batch-enabling 9 required Google Cloud APIs..."
 REQUIRED_APIS=(
@@ -71,24 +71,20 @@ REQUIRED_APIS=(
   "aiplatform.googleapis.com"
   "artifactregistry.googleapis.com"
   "compute.googleapis.com"
+  "storage.googleapis.com"
+  "vpcaccess.googleapis.com"
 )
 
-if command -v gcloud >/dev/null 2>&1; then
-  echo "   Enabling: ${REQUIRED_APIS[*]}..."
-  gcloud services enable "${REQUIRED_APIS[@]}" --project="$PROJECT_ID" --quiet || echo "   (API enablement skipped in offline mode)"
-else
-  for api in "${REQUIRED_APIS[@]}"; do
-    echo "   • $api (Registered)"
-  done
-fi
+echo "   Enabling: ${REQUIRED_APIS[*]}..."
+gcloud services enable "${REQUIRED_APIS[@]}" --project="$PROJECT_ID" --quiet
 
 # 4. Configure Docker Authentication for Artifact Registry
 echo ""
 echo "🔐 Step 4: Configuring Docker authentication for Artifact Registry ($REGION)..."
-if command -v gcloud >/dev/null 2>&1 && command -v docker >/dev/null 2>&1; then
-  gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet || echo "   (Docker auth skipped in offline mode)"
+if command -v docker >/dev/null 2>&1; then
+  gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 else
-  echo "   ✓ Docker registry auth configured for ${REGION}-docker.pkg.dev"
+  echo "   ⚠️ Docker is not installed; registry authentication will be required before deployment."
 fi
 
 echo ""

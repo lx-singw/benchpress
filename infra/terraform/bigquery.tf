@@ -7,11 +7,11 @@ locals {
 }
 
 resource "google_bigquery_dataset" "analytics" {
-  dataset_id                  = local.dataset_id
-  friendly_name               = "Benchpress AI Agent Telemetry (${upper(var.environment)})"
-  description                 = "Analytics dataset for multi-model SWE-bench trajectories and FinOps CPR economics"
-  location                    = "US"
-  delete_contents_on_destroy  = var.environment == "dev" ? true : false
+  dataset_id                 = local.dataset_id
+  friendly_name              = "Benchpress AI Agent Telemetry (${upper(var.environment)})"
+  description                = "Analytics dataset for multi-model SWE-bench trajectories and FinOps CPR economics"
+  location                   = "US"
+  delete_contents_on_destroy = var.environment == "dev" ? true : false
 
   labels = {
     env       = var.environment

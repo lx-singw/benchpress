@@ -27,7 +27,10 @@ class BigQueryStreamer:
         self.trajectories_table = trajectories_table or os.environ.get("BIGQUERY_TABLE_TRAJECTORIES", "trajectories")
         self.turn_telemetry_table = turn_telemetry_table or os.environ.get("BIGQUERY_TABLE_TURN_TELEMETRY", "turn_telemetry")
         self.local_log_path = local_log_path
-        self.use_mock = os.environ.get("USE_LOCAL_MOCK", "true").lower() == "true" or not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        # Cloud Run supplies Application Default Credentials without setting a
+        # GOOGLE_APPLICATION_CREDENTIALS file path.  Mock mode must therefore
+        # be an explicit opt-in rather than inferred from that environment key.
+        self.use_mock = os.environ.get("USE_LOCAL_MOCK", "true").lower() == "true"
 
         self.streamed_trajectories: List[Dict[str, Any]] = []
         self.streamed_turns: List[Dict[str, Any]] = []
@@ -49,22 +52,19 @@ class BigQueryStreamer:
     async def stream_turn_telemetry(self, trajectory_id: str, turn: TurnRecord) -> bool:
         """Stream turn-level telemetry record."""
         turn_dict = {
+            "turn_id": f"{trajectory_id}:{turn.turn_index}",
             "trajectory_id": trajectory_id,
             "turn_index": turn.turn_index,
-            "fsm_state": turn.state.value,
+            "state": turn.state.value,
             "model_id": turn.model_id,
             "prompt_tokens": turn.prompt_tokens,
             "completion_tokens": turn.completion_tokens,
-            "cached_tokens": turn.cached_tokens,
             "turn_cost_usd": turn.turn_cost_usd,
             "cumulative_cost_usd": turn.cumulative_cost_usd,
             "latency_ms": turn.latency_ms,
             "tool_call_name": turn.tool_call_name,
-            "tool_call_payload_json": json.dumps(turn.tool_call_payload) if turn.tool_call_payload else None,
             "ast_healed": turn.ast_healed,
-            "ast_healing_trace": turn.ast_healing_trace,
             "sandbox_exit_code": turn.sandbox_exit_code,
-            "git_tree_hash": turn.git_tree_hash,
             "timestamp": turn.timestamp,
         }
 
@@ -84,19 +84,14 @@ class BigQueryStreamer:
             "task_suite": ctx.task_suite,
             "task_id": ctx.task_id,
             "model_id": ctx.model_id,
-            "active_coder_model": ctx.active_coder_model,
             "status": ctx.status.value,
             "pass_at_1": ctx.pass_at_1,
-            "resolved": ctx.resolved,
-            "early_halted": ctx.early_halted,
-            "halt_reason": ctx.halt_reason,
-            "total_turns": ctx.current_turn,
+            "turns_count": ctx.current_turn,
             "total_cost_usd": round(ctx.accumulated_cost_usd, 4),
             "cpr_usd": cpr_usd,
             "trajectory_bloat_ratio": tbr,
             "context_decay_score": decay_score,
             "ast_heal_count": sum(1 for t in ctx.turns if t.ast_healed),
-            "git_snapshots_count": len(ctx.git_snapshots),
             "started_at": ctx.started_at,
             "completed_at": ctx.completed_at or datetime.now(timezone.utc).isoformat(),
         }

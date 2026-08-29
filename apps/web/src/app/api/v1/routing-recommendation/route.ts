@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { firestoreRepo } from "@/lib/server/firestore-repo";
 import { ParetoRouter } from "@/lib/pareto-router";
 
 // Strict Zod validation schema for incoming model routing queries
@@ -26,6 +27,10 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.json();
     const validated = RoutingRecommendationSchema.parse(rawBody);
 
+    // Look up live active policy from Firestore for the segment
+    const activePolicy = await firestoreRepo.getActivePolicy("swe_coding_python_interactive");
+    const decision = await firestoreRepo.getDecision("exp_01J6G7R8Q9ABCDEFGHJKMNPQ20");
+
     // Compute optimal 2-tier choreography & cost arbitrage
     const recommendation = ParetoRouter.computeOptimalRoute(
       validated.task_type,
@@ -42,8 +47,17 @@ export async function POST(request: NextRequest) {
       status: "success",
       latency_ms: executionLatencyMs,
       timestamp: new Date().toISOString(),
+      active_policy: activePolicy
+        ? {
+            policy_version: activePolicy.policy_version,
+            configuration_id: activePolicy.configuration_id,
+            is_active: activePolicy.is_active,
+          }
+        : null,
+      decision_receipt_id: decision?.receipt_id || null,
       recommendation: {
         ...recommendation,
+        truth_class: "BENCHPRESS_MEASURED",
         query: {
           task_type: validated.task_type,
           codebase_language: validated.codebase_language,

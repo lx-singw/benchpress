@@ -6,9 +6,11 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "tsx tests/api/test_decision_apis.test.ts"
   },
   "dependencies": {
+    "@benchpress/contracts": "workspace:*",
     "@benchpress/sdk": "workspace:*",
     "@benchpress/telemetry": "workspace:*",
     "@google-cloud/firestore": "^7.11.0",

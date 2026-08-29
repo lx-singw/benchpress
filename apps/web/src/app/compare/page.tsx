@@ -119,9 +119,12 @@ function CompareContent() {
         <div className="text-center sm:text-left">
           <div className="flex items-center gap-2 mb-2">
             <Badge variant="cyan" size="sm">
-              Head-to-Head Comparison
+              Head-to-Head Benchmark Matrix
             </Badge>
-            <span className="text-xs font-mono text-gray-400">Multi-Model Economic Arbitrage Engine</span>
+            <span className="text-xs font-mono text-gray-400">Deterministic Multi-Turn Profiling</span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+              DEMO FIXTURE
+            </span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             Side-by-Side Agentic Model Comparison
@@ -129,6 +132,10 @@ function CompareContent() {
           <p className="mt-2 text-sm text-gray-400 max-w-3xl">
             Compare multi-turn Cost Per Resolution (CPR), context degradation curves, and token bloat across any two foundation models.
           </p>
+          <div className="mt-4 p-3 rounded-lg bg-purple-500/[0.08] border border-purple-500/30 text-xs font-mono text-purple-200 flex items-center justify-between flex-wrap gap-2">
+            <span>ℹ️ Historical comparative matrix is tagged as DEMO FIXTURE. For live, ground-truth verified decision receipts, visit the Taskmaster Governance pages.</span>
+            <Link href="/decisions/exp_01J6G7R8Q9ABCDEFGHJKMNPQ20" className="text-cyan-400 underline font-semibold">View Live Judged Decision ➔</Link>
+          </div>
         </div>
 
         {/* Comparison Presets */}

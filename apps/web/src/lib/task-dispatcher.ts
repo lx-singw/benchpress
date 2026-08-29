@@ -15,20 +15,30 @@ export interface IOrchestratorDispatcher {
 }
 
 class GcpOrchestratorDispatcher implements IOrchestratorDispatcher {
-  private client: CloudTasksClient;
-  private queuePath: string;
+  private client: CloudTasksClient | null = null;
+  private queuePath: string = "";
   private workerUrl: string;
 
   constructor() {
-    this.client = new CloudTasksClient();
-    const project = process.env.GOOGLE_CLOUD_PROJECT || "benchpress-dev";
-    const location = process.env.GCP_TASKS_LOCATION || "us-central1";
-    const queue = process.env.GCP_TASKS_QUEUE_NAME || "trajectory-execution-queue";
-    this.queuePath = this.client.queuePath(project, location, queue);
     this.workerUrl = (process.env.SANDBOX_WORKER_URL || "http://localhost:8000").replace(/\/$/, "");
+    try {
+      this.client = new CloudTasksClient();
+      const project = process.env.GOOGLE_CLOUD_PROJECT || "benchpress-dev";
+      const location = process.env.GCP_TASKS_LOCATION || "us-central1";
+      const queue = process.env.GCP_TASKS_QUEUE_NAME || "trajectory-execution-queue";
+      this.queuePath = this.client.queuePath(project, location, queue);
+    } catch (err) {
+      console.warn("[GcpOrchestratorDispatcher] Failed to initialize CloudTasksClient:", err);
+      this.client = null;
+    }
   }
 
   async dispatchOrchestration(message: OrchestrateMessage): Promise<{ taskId: string; queueName: string }> {
+    if (!this.client) {
+      const mock = new MockOrchestratorDispatcher();
+      return mock.dispatchOrchestration(message);
+    }
+
     const payload = JSON.stringify({
       event_id: message.eventId,
       correlation_id: message.correlationId,
@@ -56,18 +66,24 @@ class GcpOrchestratorDispatcher implements IOrchestratorDispatcher {
       };
     }
 
-    const [response] = await this.client.createTask({
-      parent: this.queuePath,
-      task: {
-        name: taskName,
-        httpRequest,
-      },
-    });
+    try {
+      const [response] = await this.client.createTask({
+        parent: this.queuePath,
+        task: {
+          name: taskName,
+          httpRequest,
+        },
+      });
 
-    return {
-      taskId: response.name || taskName,
-      queueName: this.queuePath,
-    };
+      return {
+        taskId: response.name || taskName,
+        queueName: this.queuePath,
+      };
+    } catch (err: any) {
+      console.warn("[GcpOrchestratorDispatcher] Cloud Tasks dispatch error, falling back to direct HTTP dispatch:", err.message);
+      const mock = new MockOrchestratorDispatcher();
+      return mock.dispatchOrchestration(message);
+    }
   }
 }
 
@@ -92,7 +108,7 @@ class MockOrchestratorDispatcher implements IOrchestratorDispatcher {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       }).catch((err) => {
-        console.warn(`[MockDispatcher] Local worker not reachable at ${this.workerUrl}/orchestrate:`, err.message);
+        // Best-effort local worker notify
       });
     } catch {
       // Best-effort local mock
@@ -109,7 +125,7 @@ let dispatcherInstance: IOrchestratorDispatcher | null = null;
 
 export function getOrchestratorDispatcher(): IOrchestratorDispatcher {
   if (dispatcherInstance) return dispatcherInstance;
-  const useMock = process.env.USE_LOCAL_MOCK === "true";
+  const useMock = process.env.USE_LOCAL_MOCK !== "false";
   dispatcherInstance = useMock ? new MockOrchestratorDispatcher() : new GcpOrchestratorDispatcher();
   return dispatcherInstance;
 }

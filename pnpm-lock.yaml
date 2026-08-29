@@ -20,6 +20,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@benchpress/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@benchpress/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk-ts

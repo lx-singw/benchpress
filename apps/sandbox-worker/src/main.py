@@ -1,5 +1,5 @@
 """
-Benchpress Sandbox Worker: FastAPI Cloud Tasks Target & WebSocket Live Event Emitter.
+Benchpress Sandbox Worker: FastAPI Cloud Tasks Target, Evaluation Orchestrator & Live Stream.
 """
 
 import os
@@ -7,21 +7,25 @@ import hmac
 import hashlib
 import logging
 from typing import Optional, Dict, Any, List
-from fastapi import FastAPI, HTTPException, Request, Header, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, Header, BackgroundTasks, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from config import settings
 from fsm.states import TrajectoryContext, TrajectoryStatus
 from fsm.engine import AsyncFSMRunner
+from security.task_auth import verify_task_request
+from orchestrator.service import OrchestratorService
+from idempotency.service import IdempotencyService
+from contracts.models import RunManifest, RunResult
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("benchpress.worker")
 
 app = FastAPI(
-    title="Benchpress Sandbox Worker",
+    title="Benchpress Sandbox Worker & Orchestrator",
     version="1.0.0",
-    description="Cloud Run Gen2 Asynchronous Agent Trajectory Sandbox Worker & 13-State FSM Runner",
+    description="Cloud Run Gen2 Evaluation Orchestrator, Task Dispatcher & FSM Execution Engine",
 )
 
 app.add_middleware(
@@ -31,6 +35,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+orchestrator_service = OrchestratorService()
+idempotency_service = IdempotencyService()
+
+
+class OrchestrateRequest(BaseModel):
+    event_id: str
+    correlation_id: str
+    segment_id: str = "swe_coding_python_interactive"
 
 
 class TrajectoryTaskPayload(BaseModel):
@@ -47,16 +60,6 @@ class TrajectoryTaskPayload(BaseModel):
 active_connections: Dict[str, List[WebSocket]] = {}
 
 
-async def broadcast_trajectory_event(trajectory_id: str, event_data: Dict[str, Any]):
-    """Broadcast real-time state change or turn completion to connected WebSocket clients."""
-    if trajectory_id in active_connections:
-        for ws in active_connections[trajectory_id]:
-            try:
-                await ws.send_json(event_data)
-            except Exception:
-                pass
-
-
 @app.get("/healthz")
 async def health_check():
     """Liveness and readiness probe for Cloud Run Gen2."""
@@ -69,36 +72,61 @@ async def health_check():
     }
 
 
-async def _run_trajectory_job(payload: TrajectoryTaskPayload):
-    """Background task executing the full 13-state FSM trajectory runner."""
-    logger.info(f"[Worker] Initiating AsyncFSMRunner for trajectory {payload.trajectory_id}")
-    ctx = TrajectoryContext(
-        trajectory_id=payload.trajectory_id,
-        task_suite=payload.task_suite,
-        task_id=payload.task_id,
-        model_id=payload.model_id,
-        budget_limit_usd=payload.budget_limit_usd,
-        max_turns=payload.max_turns,
-        metadata=payload.metadata or {},
+@app.post("/orchestrate")
+async def orchestrate_evaluation(
+    payload: OrchestrateRequest,
+    authenticated: bool = Depends(verify_task_request),
+):
+    """
+    Cloud Tasks Target for Sovereign Evaluation Planning.
+    Invokes Gemini 3.5+ planner, validates plan policy, persists RunManifests, and dispatches tasks.
+    """
+    logger.info(f"[Worker] Received /orchestrate for event '{payload.event_id}' (corr: {payload.correlation_id})")
+    result = await orchestrator_service.orchestrate(
+        event_id=payload.event_id,
+        correlation_id=payload.correlation_id,
+        segment_id=payload.segment_id,
+    )
+    if result.get("status") == "PLAN_REJECTED":
+        return result
+    return result
+
+
+@app.post("/execute-run")
+async def execute_run(
+    manifest: RunManifest,
+    authenticated: bool = Depends(verify_task_request),
+    x_worker_id: Optional[str] = Header(None),
+):
+    """
+    Cloud Tasks Target for Immutable Single-Run Execution with CAS Idempotency.
+    """
+    worker_id = x_worker_id or f"worker_instance_{os.getpid()}"
+    logger.info(f"[Worker] Received /execute-run for run_key '{manifest.logical_run_key}' (worker: {worker_id})")
+
+    async def _dummy_execution():
+        # Execution placeholder wired to full run_service in Sprint 3 (IMP-04)
+        return {
+            "logical_run_key": manifest.logical_run_key,
+            "status": "SUCCEEDED",
+            "resolved": True,
+        }
+
+    outcome = await idempotency_service.execute_idempotent_run(
+        run_key=manifest.logical_run_key,
+        worker_id=worker_id,
+        execution_coro=_dummy_execution,
     )
 
-    runner = AsyncFSMRunner(context=ctx)
-    result_ctx = await runner.run()
-    logger.info(
-        f"[Worker] Trajectory {payload.trajectory_id} finished: "
-        f"status={result_ctx.status.value}, pass_at_1={result_ctx.pass_at_1}, "
-        f"turns={result_ctx.current_turn}, cost=${result_ctx.accumulated_cost_usd:.4f}"
-    )
+    if outcome.get("status") == "LEASE_HELD":
+        raise HTTPException(status_code=429, detail="Active lease held by another worker. Retry later.")
+    if outcome.get("status") == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail="Run manifest not found.")
 
-    await broadcast_trajectory_event(payload.trajectory_id, {
-        "type": "TRAJECTORY_FINISHED",
-        "status": result_ctx.status.value,
-        "pass_at_1": result_ctx.pass_at_1,
-        "turns_count": result_ctx.current_turn,
-        "total_cost_usd": result_ctx.accumulated_cost_usd,
-    })
+    return outcome
 
 
+# Legacy / Prototype endpoints preserved for backward compatibility
 @app.post("/execute-task")
 async def execute_trajectory_task(
     payload: TrajectoryTaskPayload,
@@ -106,13 +134,11 @@ async def execute_trajectory_task(
     x_cloudtasks_queuename: Optional[str] = Header(None),
     x_benchpress_hmac: Optional[str] = Header(None),
 ):
-    """Cloud Tasks HTTP Push Target for asynchronous benchmark runs."""
+    """Legacy Cloud Tasks Target for prototype asynchronous runs."""
     logger.info(
-        f"[Worker] Received benchmark task {payload.trajectory_id} for model {payload.model_id} "
-        f"(task: {payload.task_id}, queue: {x_cloudtasks_queuename or 'direct'})"
+        f"[Worker] Received legacy task {payload.trajectory_id} for model {payload.model_id}"
     )
 
-    # Optional HMAC check if secret is configured and not in mock dev mode
     if not settings.use_local_mock and x_benchpress_hmac:
         expected_sig = hmac.new(
             settings.benchpress_hmac_secret.encode(),
@@ -132,24 +158,50 @@ async def execute_trajectory_task(
     }
 
 
+async def _run_trajectory_job(payload: TrajectoryTaskPayload):
+    ctx = TrajectoryContext(
+        trajectory_id=payload.trajectory_id,
+        task_suite=payload.task_suite,
+        task_id=payload.task_id,
+        model_id=payload.model_id,
+        budget_limit_usd=payload.budget_limit_usd,
+        max_turns=payload.max_turns,
+        metadata=payload.metadata or {},
+    )
+    runner = AsyncFSMRunner(context=ctx)
+    result_ctx = await runner.run()
+    await broadcast_trajectory_event(payload.trajectory_id, {
+        "type": "TRAJECTORY_FINISHED",
+        "status": result_ctx.status.value,
+        "pass_at_1": result_ctx.pass_at_1,
+        "turns_count": result_ctx.current_turn,
+        "total_cost_usd": result_ctx.accumulated_cost_usd,
+    })
+
+
+async def broadcast_trajectory_event(trajectory_id: str, event_data: Dict[str, Any]):
+    if trajectory_id in active_connections:
+        for ws in active_connections[trajectory_id]:
+            try:
+                await ws.send_json(event_data)
+            except Exception:
+                pass
+
+
 @app.websocket("/ws/trajectories/{trajectory_id}")
 async def websocket_trajectory_stream(websocket: WebSocket, trajectory_id: str):
-    """WebSocket stream for real-time turn waterfall and FSM state events."""
     await websocket.accept()
     if trajectory_id not in active_connections:
         active_connections[trajectory_id] = []
     active_connections[trajectory_id].append(websocket)
-    logger.info(f"[WebSocket] Client connected for trajectory {trajectory_id}")
 
     try:
         while True:
-            # Keep connection alive
             await websocket.receive_text()
     except WebSocketDisconnect:
         active_connections[trajectory_id].remove(websocket)
         if not active_connections[trajectory_id]:
             del active_connections[trajectory_id]
-        logger.info(f"[WebSocket] Client disconnected for trajectory {trajectory_id}")
 
 
 def ctx_now() -> str:

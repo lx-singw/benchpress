@@ -1,0 +1,193 @@
+"""
+Gemini Evaluation Planner & Function Calling Loop.
+Coordinates the autonomous multi-turn tool-calling loop over sovereign tools.
+"""
+
+import json
+import logging
+from typing import Dict, Any, Optional, Tuple, List
+from .prompts import ORCHESTRATOR_SYSTEM_PROMPT, format_planner_user_prompt
+from .tools import OrchestratorToolRegistry, GEMINI_TOOL_DECLARATIONS
+from .gemini_client import GeminiOrchestratorClient, GeminiUsageMetadata
+from contracts.hashing import generate_plan_id
+
+logger = logging.getLogger("benchpress.orchestrator.planner")
+
+
+class GeminiEvaluationPlanner:
+    """Multi-turn evaluation orchestrator planner driving Gemini function calling."""
+
+    def __init__(
+        self,
+        gemini_client: Optional[GeminiOrchestratorClient] = None,
+        tool_registry: Optional[OrchestratorToolRegistry] = None,
+        max_turns: int = 10,
+    ):
+        self.client = gemini_client or GeminiOrchestratorClient()
+        self.tool_registry = tool_registry or OrchestratorToolRegistry()
+        self.max_turns = max_turns
+
+    def run(
+        self,
+        event_id: str,
+        correlation_id: str,
+        segment_id: str = "swe_coding_python_interactive",
+    ) -> Tuple[Optional[Dict[str, Any]], GeminiUsageMetadata]:
+        """
+        Execute the multi-turn agentic planning loop.
+        Returns the proposed experiment plan dictionary and aggregate usage metadata.
+        """
+        user_prompt = format_planner_user_prompt(event_id, correlation_id, segment_id)
+        
+        # If running in live mode with valid client
+        if self.client.is_live():
+            return self._run_live_loop(event_id, correlation_id, segment_id, user_prompt)
+        
+        # Otherwise execute simulated multi-turn tool execution
+        return self._run_simulated_loop(event_id, correlation_id, segment_id)
+
+    def _run_simulated_loop(
+        self,
+        event_id: str,
+        correlation_id: str,
+        segment_id: str,
+    ) -> Tuple[Dict[str, Any], GeminiUsageMetadata]:
+        """Authentic multi-turn tool calling simulation for offline tests and local mock mode."""
+        # 1. get_change_event
+        change_event = self.tool_registry.get_change_event(event_id)
+        # 2. get_current_baseline
+        baseline_policy = self.tool_registry.get_current_baseline(segment_id)
+        # 3. list_supported_configurations
+        configs = self.tool_registry.list_supported_configurations("google", "gemini-2.5")
+        # 4. get_task_fingerprint
+        fingerprint = self.tool_registry.get_task_fingerprint("fp_1a2b3c4d5e6f7a8b")
+        # 5. list_candidate_tasks
+        tasks = self.tool_registry.list_candidate_tasks("judged_task_cohort.v1")
+
+        # Select candidate configuration
+        candidate_ids = [
+            c["configuration_id"] for c in configs
+            if c["configuration_id"] != baseline_policy["configuration_id"]
+        ]
+        if not candidate_ids:
+            candidate_ids = ["cfg_4f1b82d3e9a0c784"]
+
+        selected_tasks = [t["task_id"] for t in tasks]
+
+        # Construct deterministic ExperimentPlan
+        plan_content = {
+            "experiment_id": f"exp_{correlation_id.replace('corr_', '')}",
+            "correlation_id": correlation_id,
+            "event_id": event_id,
+            "fingerprint_id": fingerprint["fingerprint_id"],
+            "baseline_configuration_id": baseline_policy["configuration_id"],
+            "candidate_configuration_ids": candidate_ids,
+            "task_cohort_version": "cohort_swe_judged_v1",
+            "selected_task_ids": selected_tasks,
+            "repetitions_per_task": 1,
+            "max_matrix_spend_usd": "0.500000",
+            "reserved_budget_usd": "0.500000",
+            "per_run_timeout_seconds": 60,
+            "max_turns_per_run": 15,
+            "quality_floor_pass_rate": 0.75,
+            "early_stop_consecutive_failures": 2,
+            "planner_model": "gemini-2.5-pro",
+            "plan_policy_version": "plan_pol_v1_taskmaster",
+            "planning_rationale": "Evaluating candidate configuration with 2048 thinking tokens vs baseline on judged SWE-bench tasks",
+        }
+        plan_id = generate_plan_id(plan_content)
+
+        proposed_plan = {
+            "schema_version": "1.0.0",
+            "plan_id": plan_id,
+            **plan_content,
+            "created_at": "2026-08-29T10:00:20.000Z",
+        }
+
+        usage = GeminiUsageMetadata(
+            prompt_tokens=1850,
+            candidate_tokens=420,
+            reasoning_tokens=256,
+            total_tokens=2270,
+            latency_ms=1200,
+            finish_reason="STOP",
+            model_id="gemini-2.5-pro",
+        )
+
+        return proposed_plan, usage
+
+    def _run_live_loop(
+        self,
+        event_id: str,
+        correlation_id: str,
+        segment_id: str,
+        user_prompt: str,
+    ) -> Tuple[Optional[Dict[str, Any]], GeminiUsageMetadata]:
+        """Execute real multi-turn function calling conversation with Gemini API."""
+        contents: List[Any] = [{"role": "user", "parts": [{"text": user_prompt}]}]
+        accumulated_usage = GeminiUsageMetadata()
+        proposed_plan: Optional[Dict[str, Any]] = None
+
+        for turn in range(self.max_turns):
+            result = self.client.call_with_tools(
+                system_instruction=ORCHESTRATOR_SYSTEM_PROMPT,
+                contents=contents,
+                tools=GEMINI_TOOL_DECLARATIONS,
+            )
+
+            # Accumulate usage
+            accumulated_usage.prompt_tokens += result.usage.prompt_tokens
+            accumulated_usage.candidate_tokens += result.usage.candidate_tokens
+            accumulated_usage.reasoning_tokens += result.usage.reasoning_tokens
+            accumulated_usage.total_tokens += result.usage.total_tokens
+            accumulated_usage.latency_ms += result.usage.latency_ms
+
+            if not result.function_calls:
+                # Terminal model response without function calls
+                break
+
+            # Execute tool calls
+            for fc in result.function_calls:
+                name = fc["name"]
+                args = fc["args"]
+                tool_result = self._execute_tool(name, args)
+
+                if name == "propose_experiment":
+                    proposed_plan = args.get("plan")
+                    return proposed_plan, accumulated_usage
+
+                # Append tool result to conversation history
+                contents.append({
+                    "role": "model",
+                    "parts": [{"function_call": {"name": name, "args": args}}]
+                })
+                contents.append({
+                    "role": "user",
+                    "parts": [{
+                        "function_response": {
+                            "name": name,
+                            "response": tool_result,
+                        }
+                    }]
+                })
+
+        return proposed_plan, accumulated_usage
+
+    def _execute_tool(self, name: str, args: Dict[str, Any]) -> Any:
+        """Dispatch tool name to OrchestratorToolRegistry method."""
+        if name == "get_change_event":
+            return self.tool_registry.get_change_event(args.get("event_id", ""))
+        elif name == "get_current_baseline":
+            return self.tool_registry.get_current_baseline(args.get("segment_id", ""))
+        elif name == "list_supported_configurations":
+            return self.tool_registry.list_supported_configurations(
+                args.get("provider", "google"),
+                args.get("model_family", "gemini-2.5")
+            )
+        elif name == "get_task_fingerprint":
+            return self.tool_registry.get_task_fingerprint(args.get("fingerprint_id", ""))
+        elif name == "list_candidate_tasks":
+            return self.tool_registry.list_candidate_tasks(args.get("cohort_version", "judged_task_cohort.v1"))
+        elif name == "propose_experiment":
+            return self.tool_registry.propose_experiment(args.get("plan", {}))
+        raise ValueError(f"Unknown tool name '{name}'")

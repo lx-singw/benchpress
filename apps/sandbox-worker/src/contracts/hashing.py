@@ -5,8 +5,15 @@ Guarantees byte-for-byte cross-language hash parity with TypeScript @benchpress/
 
 import hashlib
 import json
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 from pydantic import BaseModel
+
+
+def utc_now_rfc3339() -> str:
+    """Format current UTC time matching strict 3-digit millisecond RFC 3339 regex: YYYY-MM-DDTHH:MM:SS.sssZ"""
+    now = datetime.now(timezone.utc)
+    return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
 
 
 def _normalize_for_canonical_json(obj: Any) -> Any:

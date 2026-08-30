@@ -78,6 +78,7 @@ export GOOGLE_CLOUD_REGION="<region>"
 export VERTEX_AI_LOCATION="<region>"
 export GENAI_USE_VERTEXAI=true
 export PLANNER_MODEL="<exact-account-verified-gemini-3.5+-model-id>"
+export VERTEX_AI_LOCATION="global"
 export REPOSITORY_BACKEND=firestore
 export FIRESTORE_DATABASE_ID="(default)"
 export FIRESTORE_COLLECTION_PREFIX="benchpress_rehearsal"

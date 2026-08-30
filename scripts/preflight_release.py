@@ -137,10 +137,17 @@ def check_planner_model(report: dict) -> None:
         api_surface = "vertex_ai"
 
     started = time.perf_counter()
+    generation_config = {"max_output_tokens": 8}
+    if settings.planner_model.startswith("gemini-3.7"):
+        generation_config["thinking_config"] = types.ThinkingConfig(
+            thinking_level=types.ThinkingLevel.LOW
+        )
+    else:
+        generation_config["temperature"] = 0
     response = client.models.generate_content(
         model=settings.planner_model,
         contents="Return exactly the single word READY.",
-        config=types.GenerateContentConfig(temperature=0, max_output_tokens=8),
+        config=types.GenerateContentConfig(**generation_config),
     )
     latency_ms = round((time.perf_counter() - started) * 1000)
     usage = getattr(response, "usage_metadata", None)

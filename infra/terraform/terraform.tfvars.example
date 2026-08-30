@@ -4,6 +4,7 @@
 
 project_id                  = "benchpress-production"
 region                      = "us-central1"
+vertex_ai_location          = "global"
 zone                        = "us-central1-a"
 environment                 = "prod"
 runtime_mode                = "production"

@@ -81,7 +81,7 @@ resource "google_cloud_run_v2_service" "sandbox_worker" {
           RELEASE_SHA                       = var.release_sha
           GOOGLE_CLOUD_PROJECT              = var.project_id
           GOOGLE_CLOUD_REGION               = var.region
-          VERTEX_AI_LOCATION                = var.region
+          VERTEX_AI_LOCATION                = var.vertex_ai_location
           GENAI_USE_VERTEXAI                = "true"
           PLANNER_MODEL                     = var.planner_model
           REPOSITORY_BACKEND                = "firestore"

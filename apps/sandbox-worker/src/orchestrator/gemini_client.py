@@ -99,11 +99,17 @@ class GeminiOrchestratorClient:
         try:
             from google.genai import types
 
-            config = types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.0,
-                tools=tools,
-            )
+            generation_kwargs: Dict[str, Any] = {
+                "system_instruction": system_instruction,
+                "tools": tools,
+            }
+            if target_model.startswith("gemini-3.7"):
+                generation_kwargs["thinking_config"] = types.ThinkingConfig(
+                    thinking_level=types.ThinkingLevel.MEDIUM
+                )
+            else:
+                generation_kwargs["temperature"] = 0.0
+            config = types.GenerateContentConfig(**generation_kwargs)
 
             response = self.client.models.generate_content(
                 model=target_model,

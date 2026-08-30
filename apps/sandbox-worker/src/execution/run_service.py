@@ -73,7 +73,7 @@ class RunExecutionService:
             native_configuration = self.configuration_repository.get_configuration(manifest.configuration_id)
             if native_configuration is None:
                 raise ValueError(f"Unknown immutable configuration: {manifest.configuration_id}")
-        effective_config = native_configuration.model_dump(mode="json")
+        effective_config = native_configuration.model_dump(mode="json", exclude_none=True)
 
         accumulated_usage = AccumulatedRunUsage()
         turns_executed = 0

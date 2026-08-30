@@ -13,6 +13,7 @@ SKIP_BOOTSTRAP=false
 SKIP_TERRAFORM=false
 SKIP_DOCKER=false
 SKIP_SMOKE=false
+TERRAFORM_BIN="${TERRAFORM_BIN:-terraform}"
 
 # --- Parse CLI Arguments ---
 while [[ $# -gt 0 ]]; do
@@ -111,15 +112,14 @@ fi
 # 2. Apply Terraform Infrastructure. The G0 path uses Vertex AI workload
 # identity and Cloud Tasks OIDC; it does not provision API/HMAC secrets.
 if [ "$SKIP_TERRAFORM" = false ]; then
-  if ! command -v terraform >/dev/null 2>&1; then
+  if ! command -v "$TERRAFORM_BIN" >/dev/null 2>&1 && [[ ! -x "$TERRAFORM_BIN" ]]; then
     echo "Error: terraform is required unless --skip-terraform is explicitly supplied." >&2
     exit 1
   else
     echo ""
     echo "📦 Step 2: Applying Terraform Infrastructure for '$ENV'..."
-    cd infra/terraform
-    terraform init -input=false
-    terraform apply \
+    "$TERRAFORM_BIN" -chdir=infra/terraform init -input=false
+    "$TERRAFORM_BIN" -chdir=infra/terraform apply \
       -target=google_artifact_registry_repository.benchpress_repo \
       -var-file="environments/${ENV}.tfvars" \
       -var="project_id=${PROJECT_ID}" \
@@ -130,7 +130,6 @@ if [ "$SKIP_TERRAFORM" = false ]; then
       -var="worker_image=${WORKER_IMAGE}" \
       -auto-approve \
       -input=false
-    cd ../..
   fi
 else
   echo "⏩ Skipping Terraform application (--skip-terraform)"
@@ -158,8 +157,7 @@ fi
 if [ "$SKIP_TERRAFORM" = false ]; then
   echo ""
   echo "📦 Applying the full Terraform stack after immutable images are available..."
-  cd infra/terraform
-  terraform apply \
+  "$TERRAFORM_BIN" -chdir=infra/terraform apply \
     -var-file="environments/${ENV}.tfvars" \
     -var="project_id=${PROJECT_ID}" \
     -var="region=${REGION}" \
@@ -169,7 +167,6 @@ if [ "$SKIP_TERRAFORM" = false ]; then
     -var="worker_image=${WORKER_IMAGE}" \
     -auto-approve \
     -input=false
-  cd ../..
 fi
 
 # 4. Automated Post-Deployment Smoke Verification
@@ -187,9 +184,9 @@ if [ "$ENV" = "prod" ]; then
   DATASET_NAME="benchpress_analytics"
 fi
 
-if [ "$SKIP_TERRAFORM" = false ] && command -v terraform >/dev/null 2>&1; then
-  WEB_URL="$(terraform -chdir=infra/terraform output -raw web_service_uri)"
-  WORKER_URL="$(terraform -chdir=infra/terraform output -raw worker_service_uri)"
+if [ "$SKIP_TERRAFORM" = false ] && { command -v "$TERRAFORM_BIN" >/dev/null 2>&1 || [[ -x "$TERRAFORM_BIN" ]]; }; then
+  WEB_URL="$("$TERRAFORM_BIN" -chdir=infra/terraform output -raw web_service_uri)"
+  WORKER_URL="$("$TERRAFORM_BIN" -chdir=infra/terraform output -raw worker_service_uri)"
 else
   WEB_URL="not-applied"
   WORKER_URL="not-applied"

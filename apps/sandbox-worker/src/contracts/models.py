@@ -4,7 +4,7 @@ Fail-closed validation with extra="forbid" and cross-language deterministic rege
 """
 
 from typing import Dict, List, Optional, Literal
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from .states import (
     ExperimentState,
     LogicalRunState,
@@ -92,14 +92,15 @@ class TaskFingerprint(StrictBaseModel):
 
 # 3. NativeConfiguration
 class NativeConfiguration(StrictBaseModel):
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["1.0.0", "1.1.0"] = "1.0.0"
     configuration_id: str = Field(..., pattern=CONFIGURATION_ID_REGEX)
     provider: str = Field(..., min_length=1)
     request_model: str = Field(..., min_length=1)
     resolved_model_snapshot: Optional[str] = None
-    thinking_budget_tokens: int = Field(..., ge=0)
-    temperature: float = Field(..., ge=0.0, le=2.0)
-    top_p: float = Field(..., ge=0.0, le=1.0)
+    thinking_budget_tokens: Optional[int] = Field(default=None, ge=0)
+    thinking_level: Optional[Literal["low", "medium", "high"]] = None
+    temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
+    top_p: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     max_output_tokens: int = Field(..., ge=1)
     system_instruction_hash: str = Field(..., pattern=SHA256_64_REGEX)
     tool_schema_hash: str = Field(..., pattern=SHA256_64_REGEX)
@@ -107,6 +108,34 @@ class NativeConfiguration(StrictBaseModel):
     price_output_per_million_usd: str = Field(..., pattern=DECIMAL_USD_REGEX)
     price_source_version: str = Field(..., min_length=1)
     created_at: str = Field(..., pattern=RFC3339_MILLIS_REGEX)
+
+    @model_validator(mode="after")
+    def validate_model_native_controls(self):
+        is_gemini_37 = self.request_model.startswith("gemini-3.7")
+        legacy_controls = (
+            self.thinking_budget_tokens,
+            self.temperature,
+            self.top_p,
+        )
+        if is_gemini_37:
+            if self.schema_version != "1.1.0":
+                raise ValueError("Gemini 3.7 configurations require schema_version 1.1.0")
+            if self.thinking_level is None:
+                raise ValueError("Gemini 3.7 configurations require thinking_level")
+            if any(value is not None for value in legacy_controls):
+                raise ValueError(
+                    "Gemini 3.7 configurations must omit thinking_budget_tokens, temperature, and top_p"
+                )
+        else:
+            if self.schema_version != "1.0.0":
+                raise ValueError("Legacy native configurations require schema_version 1.0.0")
+            if self.thinking_level is not None:
+                raise ValueError("Legacy native configurations must omit thinking_level")
+            if any(value is None for value in legacy_controls):
+                raise ValueError(
+                    "Legacy native configurations require thinking_budget_tokens, temperature, and top_p"
+                )
+        return self
 
 
 # 4. ExperimentPlan

@@ -87,14 +87,15 @@ export type TaskFingerprint = z.infer<typeof TaskFingerprintSchema>;
 
 // 3. NativeConfiguration Schema
 export const NativeConfigurationSchema = z.object({
-  schema_version: z.literal("1.0.0"),
+  schema_version: z.enum(["1.0.0", "1.1.0"]),
   configuration_id: ConfigurationIdSchema,
   provider: z.string().min(1),
   request_model: z.string().min(1),
   resolved_model_snapshot: z.string().optional(),
-  thinking_budget_tokens: z.number().int().min(0),
-  temperature: z.number().min(0.0).max(2.0),
-  top_p: z.number().min(0.0).max(1.0),
+  thinking_budget_tokens: z.number().int().min(0).optional(),
+  thinking_level: z.enum(["low", "medium", "high"]).optional(),
+  temperature: z.number().min(0.0).max(2.0).optional(),
+  top_p: z.number().min(0.0).max(1.0).optional(),
   max_output_tokens: z.number().int().min(1),
   system_instruction_hash: Sha256HashSchema,
   tool_schema_hash: Sha256HashSchema,
@@ -102,7 +103,40 @@ export const NativeConfigurationSchema = z.object({
   price_output_per_million_usd: DecimalUsdSchema,
   price_source_version: z.string().min(1),
   created_at: TimestampSchema,
-}).strict();
+}).strict().superRefine((value, context) => {
+  const isGemini37 = value.request_model.startsWith("gemini-3.7");
+  if (isGemini37) {
+    if (value.schema_version !== "1.1.0" || value.thinking_level === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Gemini 3.7 configurations require schema_version 1.1.0 and thinking_level",
+      });
+    }
+    if (
+      value.thinking_budget_tokens !== undefined ||
+      value.temperature !== undefined ||
+      value.top_p !== undefined
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Gemini 3.7 configurations must omit legacy sampling and thinking-budget controls",
+      });
+    }
+    return;
+  }
+  if (
+    value.schema_version !== "1.0.0" ||
+    value.thinking_budget_tokens === undefined ||
+    value.temperature === undefined ||
+    value.top_p === undefined ||
+    value.thinking_level !== undefined
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Legacy configurations require schema_version 1.0.0 and legacy native controls",
+    });
+  }
+});
 export type NativeConfiguration = z.infer<typeof NativeConfigurationSchema>;
 
 // 4. ExperimentPlan Schema

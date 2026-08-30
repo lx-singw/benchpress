@@ -12,6 +12,35 @@ from config import settings
 
 logger = logging.getLogger("benchpress.execution.gemini")
 
+
+def native_generation_parameters(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Return only the provider-native generation controls valid for the requested model."""
+    model = str(config.get("request_model", ""))
+    if model.startswith("gemini-3.7"):
+        forbidden = [
+            name
+            for name in ("thinking_budget_tokens", "temperature", "top_p")
+            if config.get(name) is not None
+        ]
+        if forbidden:
+            raise ValueError(
+                f"Gemini 3.7 configuration contains unsupported controls: {', '.join(forbidden)}"
+            )
+        thinking_level = str(config.get("thinking_level", "")).lower()
+        if thinking_level not in {"low", "medium", "high"}:
+            raise ValueError("Gemini 3.7 thinking_level must be low, medium, or high")
+        return {
+            "max_output_tokens": int(config["max_output_tokens"]),
+            "thinking_level": thinking_level,
+        }
+
+    return {
+        "temperature": float(config.get("temperature", 0.0)),
+        "top_p": float(config.get("top_p", 1.0)),
+        "max_output_tokens": int(config["max_output_tokens"]),
+        "thinking_budget_tokens": int(config["thinking_budget_tokens"]),
+    }
+
 # Standard Coding Tools for Benchmarking Tasks
 CODING_TOOLS_DECLARATIONS = [
     {
@@ -107,19 +136,29 @@ class GeminiProviderAdapter(BaseProviderAdapter):
             from google.genai import types
 
             gemini_tools = CODING_TOOLS_DECLARATIONS if tools is None else tools
-            temp = float(config.get("temperature", 0.0)) if config else 0.0
-            thinking_budget = int(config["thinking_budget_tokens"])
-            max_output_tokens = int(config["max_output_tokens"])
-            top_p = float(config["top_p"])
+            native = native_generation_parameters(config)
+            generation_kwargs: Dict[str, Any] = {
+                "system_instruction": system_instruction,
+                "max_output_tokens": native["max_output_tokens"],
+                "tools": gemini_tools,
+            }
+            if model.startswith("gemini-3.7"):
+                generation_kwargs["thinking_config"] = types.ThinkingConfig(
+                    thinking_level=getattr(
+                        types.ThinkingLevel,
+                        str(native["thinking_level"]).upper(),
+                    )
+                )
+            else:
+                generation_kwargs.update(
+                    temperature=native["temperature"],
+                    top_p=native["top_p"],
+                    thinking_config=types.ThinkingConfig(
+                        thinking_budget=native["thinking_budget_tokens"]
+                    ),
+                )
 
-            gen_config = types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=temp,
-                top_p=top_p,
-                max_output_tokens=max_output_tokens,
-                thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
-                tools=gemini_tools,
-            )
+            gen_config = types.GenerateContentConfig(**generation_kwargs)
 
             response = self.client.models.generate_content(
                 model=model,

@@ -115,7 +115,7 @@ def test_deploy_script_env_flag_support():
     assert "web:${RELEASE_SHA}" in deploy_script
     assert "sandbox-worker:${RELEASE_SHA}" in deploy_script
     assert "git diff --quiet" in deploy_script
-    assert "terraform -chdir=infra/terraform output -raw web_service_uri" in deploy_script
+    assert '"$TERRAFORM_BIN" -chdir=infra/terraform output -raw web_service_uri' in deploy_script
     assert "verify_monorepo.sh" in deploy_script
 
 

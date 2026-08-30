@@ -17,7 +17,11 @@ class ConfigurationRepository(Protocol):
 
 
 def derive_configuration_id(configuration: NativeConfiguration | dict) -> str:
-    payload = configuration.model_dump(mode="json") if isinstance(configuration, NativeConfiguration) else dict(configuration)
+    payload = (
+        configuration.model_dump(mode="json", exclude_none=True)
+        if isinstance(configuration, NativeConfiguration)
+        else {key: value for key, value in dict(configuration).items() if value is not None}
+    )
     payload.pop("configuration_id", None)
     payload.pop("created_at", None)
     return generate_configuration_id(payload)
@@ -66,7 +70,7 @@ class InMemoryConfigurationRepository:
             return NativeConfiguration.model_validate(value) if value else None
 
     def store_configuration(self, configuration: NativeConfiguration) -> None:
-        payload = configuration.model_dump(mode="json")
+        payload = configuration.model_dump(mode="json", exclude_none=True)
         with self._lock:
             existing = self.configurations.get(configuration.configuration_id)
             if existing and existing != payload:
@@ -101,7 +105,7 @@ class FirestoreConfigurationRepository:
             )
         reference = self.collection.document(configuration.configuration_id)
         transaction = self.client.transaction()
-        payload = configuration.model_dump(mode="json")
+        payload = configuration.model_dump(mode="json", exclude_none=True)
 
         @self.firestore.transactional
         def create(txn):

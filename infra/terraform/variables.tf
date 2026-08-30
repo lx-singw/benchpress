@@ -25,6 +25,12 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "vertex_ai_location" {
+  type        = string
+  description = "Vertex AI publisher-model location; Gemini 3.7 Flash is accessed through global"
+  default     = "global"
+}
+
 variable "runtime_mode" {
   type        = string
   description = "Explicit application runtime mode"

@@ -41,7 +41,12 @@ class GeminiEvaluationPlanner:
         Execute the multi-turn agentic planning loop.
         Returns the proposed experiment plan dictionary and aggregate usage metadata.
         """
-        user_prompt = format_planner_user_prompt(event_id, correlation_id, segment_id)
+        user_prompt = format_planner_user_prompt(
+            event_id,
+            correlation_id,
+            segment_id,
+            settings.task_fingerprint_id,
+        )
         
         # If running in live mode with valid client
         if self.client.is_live():
@@ -76,6 +81,7 @@ class GeminiEvaluationPlanner:
         ]
         if not candidate_ids:
             candidate_ids = ["cfg_4f1b82d3e9a0c784"]
+        candidate_ids = candidate_ids[:1]
 
         selected_tasks = [t["task_id"] for t in tasks]
 

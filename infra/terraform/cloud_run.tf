@@ -84,6 +84,7 @@ resource "google_cloud_run_v2_service" "sandbox_worker" {
           VERTEX_AI_LOCATION                = var.vertex_ai_location
           GENAI_USE_VERTEXAI                = "true"
           PLANNER_MODEL                     = var.planner_model
+          TASK_FINGERPRINT_ID               = var.task_fingerprint_id
           REPOSITORY_BACKEND                = "firestore"
           FIRESTORE_DATABASE_ID             = "(default)"
           FIRESTORE_COLLECTION_PREFIX       = "${var.firestore_collection_prefix}_${var.environment}"

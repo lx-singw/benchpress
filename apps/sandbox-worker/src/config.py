@@ -65,6 +65,10 @@ class WorkerSettings(BaseSettings):
     genai_use_vertexai: bool = Field(default=False, alias="GENAI_USE_VERTEXAI")
     gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
     planner_model: str = Field(default="gemini-3.5-local-fixture", alias="PLANNER_MODEL")
+    task_fingerprint_id: str = Field(
+        default="fp_eeff17a2a24993a9",
+        alias="TASK_FINGERPRINT_ID",
+    )
     coder_model: str = Field(default="gemini-2.5-flash", alias="CODER_MODEL")
     supervisor_model: str = Field(default="gemini-2.5-pro", alias="SUPERVISOR_MODEL")
 
@@ -121,6 +125,7 @@ class WorkerSettings(BaseSettings):
             "GOOGLE_CLOUD_PROJECT": self.google_cloud_project,
             "GOOGLE_CLOUD_REGION": self.google_cloud_region,
             "PLANNER_MODEL": self.planner_model,
+            "TASK_FINGERPRINT_ID": self.task_fingerprint_id,
             "GCP_TASKS_QUEUE_NAME": self.tasks_queue_name,
             "GCP_TASKS_LOCATION": self.tasks_location,
             "SANDBOX_WORKER_URL": self.worker_base_url,

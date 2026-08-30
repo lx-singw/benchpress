@@ -58,6 +58,16 @@ variable "planner_model" {
   }
 }
 
+variable "task_fingerprint_id" {
+  type        = string
+  description = "Frozen task fingerprint document used by the evaluation planner"
+  default     = "fp_eeff17a2a24993a9"
+  validation {
+    condition     = can(regex("^fp_[a-f0-9]{16}$", var.task_fingerprint_id))
+    error_message = "task_fingerprint_id must use the canonical fp_<sha256:16> form."
+  }
+}
+
 variable "web_image" {
   type        = string
   description = "Immutable web image URL tagged with the full release SHA or pinned by digest"

@@ -88,7 +88,13 @@ jq -e --arg sha "$EXPECTED_RELEASE_SHA" \
   '.status == "healthy" and .release_sha == $sha and (.runtime_mode == "development" or .runtime_mode == "production")' \
   "$TEMP_DIR/web-health.json" >/dev/null
 
-WORKER_TOKEN="$(gcloud auth print-identity-token --audiences="$WORKER_URL")"
+# Service-account credentials can mint a token with an explicit audience. User
+# credentials cannot pass --audiences, but gcloud's default identity token is
+# accepted by Cloud Run for an authorized principal. Support both so operator
+# smoke tests work without requiring service-account impersonation.
+if ! WORKER_TOKEN="$(gcloud auth print-identity-token --audiences="$WORKER_URL" 2>"$TEMP_DIR/identity-token.err")"; then
+  WORKER_TOKEN="$(gcloud auth print-identity-token)"
+fi
 require_status 200 "$TEMP_DIR/worker-ready.json" "${WORKER_URL}/readyz" \
   --header "Authorization: Bearer ${WORKER_TOKEN}"
 jq -e --arg sha "$EXPECTED_RELEASE_SHA" \

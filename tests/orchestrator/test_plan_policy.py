@@ -83,6 +83,46 @@ def test_plan_policy_unregistered_candidate(valid_plan_dict):
     assert any("Unregistered candidate configuration" in r for r in result.reasons)
 
 
+def test_plan_policy_rejects_multiple_candidates(valid_plan_dict):
+    validator = PlanPolicyValidator()
+    event_dict = {
+        "baseline_configuration_id": "cfg_948a3f81e3a1b029",
+        "max_spend_usd": "2.500000",
+    }
+    bad_plan = copy.deepcopy(valid_plan_dict)
+    bad_plan["candidate_configuration_ids"] = [
+        "cfg_4f1b82d3e9a0c784",
+        "cfg_7c2a93e4f1b80d19",
+    ]
+
+    result = validator.evaluate_plan(bad_plan, event_dict)
+    assert result.approved is False
+    assert any("exactly 1 candidate" in reason for reason in result.reasons)
+
+
+def test_plan_policy_resolves_nonlocal_configuration_registry(valid_plan_dict):
+    class Repository:
+        def get_configuration(self, configuration_id):
+            return object() if configuration_id in {
+                "cfg_948a3f81e3a1b029",
+                "cfg_4f1b82d3e9a0c784",
+            } else None
+
+    validator = PlanPolicyValidator(configuration_repository=Repository())
+    event_dict = {
+        "baseline_configuration_id": "cfg_948a3f81e3a1b029",
+        "max_spend_usd": "2.500000",
+    }
+
+    assert validator.evaluate_plan(valid_plan_dict, event_dict).approved is True
+
+    bad_plan = copy.deepcopy(valid_plan_dict)
+    bad_plan["candidate_configuration_ids"] = ["cfg_0000000000000000"]
+    result = validator.evaluate_plan(bad_plan, event_dict)
+    assert result.approved is False
+    assert any("Unregistered candidate configuration" in reason for reason in result.reasons)
+
+
 def test_plan_policy_unrecognized_task(valid_plan_dict):
     validator = PlanPolicyValidator()
     event_dict = {"baseline_configuration_id": "cfg_948a3f81e3a1b029", "max_spend_usd": "2.500000"}

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 import time
 import uuid
@@ -29,11 +31,30 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def check_worker_readiness(report: dict) -> None:
-    from google.auth.transport.requests import Request as GoogleAuthRequest
-    from google.oauth2 import id_token
+def short_lived_token(environment_variable: str, gcloud_command: list[str]) -> str:
+    """Read an injected short-lived token or mint one from the active gcloud session."""
+    injected = os.environ.get(environment_variable, "").strip()
+    if injected:
+        return injected
+    return subprocess.run(
+        gcloud_command,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
 
-    token = id_token.fetch_id_token(GoogleAuthRequest(), settings.tasks_oidc_audience)
+
+def check_worker_readiness(report: dict, *, use_gcloud_auth: bool = False) -> None:
+    if use_gcloud_auth:
+        token = short_lived_token(
+            "GOOGLE_OAUTH_ID_TOKEN",
+            ["gcloud", "auth", "print-identity-token"],
+        )
+    else:
+        from google.auth.transport.requests import Request as GoogleAuthRequest
+        from google.oauth2 import id_token
+
+        token = id_token.fetch_id_token(GoogleAuthRequest(), settings.tasks_oidc_audience)
     request = Request(
         f"{settings.worker_base_url.rstrip('/')}/readyz",
         method="GET",
@@ -50,12 +71,13 @@ def check_worker_readiness(report: dict) -> None:
     }
 
 
-def check_firestore(report: dict) -> None:
+def check_firestore(report: dict, *, credentials=None) -> None:
     from google.cloud import firestore
 
     client = firestore.Client(
         project=settings.google_cloud_project,
         database=settings.firestore_database_id,
+        credentials=credentials,
     )
     check_id = f"preflight-{uuid.uuid4().hex}"
     document = client.collection(f"{settings.firestore_collection_prefix}_preflight").document(check_id)
@@ -86,10 +108,10 @@ def check_firestore(report: dict) -> None:
     }
 
 
-def check_cloud_tasks(report: dict) -> None:
+def check_cloud_tasks(report: dict, *, credentials=None) -> None:
     from google.cloud import tasks_v2
 
-    client = tasks_v2.CloudTasksClient()
+    client = tasks_v2.CloudTasksClient(credentials=credentials)
     queue_name = client.queue_path(
         settings.google_cloud_project,
         settings.tasks_location,
@@ -103,10 +125,10 @@ def check_cloud_tasks(report: dict) -> None:
     }
 
 
-def check_bigquery(report: dict) -> None:
+def check_bigquery(report: dict, *, credentials=None) -> None:
     from google.cloud import bigquery
 
-    client = bigquery.Client(project=settings.google_cloud_project)
+    client = bigquery.Client(project=settings.google_cloud_project, credentials=credentials)
     dataset = client.get_dataset(f"{settings.google_cloud_project}.{settings.bigquery_dataset}")
     required_tables = ["trajectories", "fsm_turns", "workflow_events"]
     available_tables = {table.table_id for table in client.list_tables(dataset)}
@@ -121,7 +143,7 @@ def check_bigquery(report: dict) -> None:
     }
 
 
-def check_planner_model(report: dict) -> None:
+def check_planner_model(report: dict, *, credentials=None) -> None:
     from google import genai
     from google.genai import types
 
@@ -133,6 +155,7 @@ def check_planner_model(report: dict) -> None:
             vertexai=True,
             project=settings.google_cloud_project,
             location=settings.vertex_ai_location,
+            credentials=credentials,
         )
         api_surface = "vertex_ai"
 
@@ -183,6 +206,11 @@ def main() -> int:
         action="store_true",
         help="Skip the deployed /readyz check during an initial infrastructure preflight",
     )
+    parser.add_argument(
+        "--gcloud-auth",
+        action="store_true",
+        help="Use short-lived tokens from the active gcloud user session instead of ADC",
+    )
     args = parser.parse_args()
 
     if settings.runtime_mode is RuntimeMode.LOCAL_MOCK:
@@ -199,9 +227,30 @@ def main() -> int:
         "status": "RUNNING",
     }
 
-    checks = [check_firestore, check_cloud_tasks, check_bigquery, check_planner_model]
+    credentials = None
+    if args.gcloud_auth:
+        from google.oauth2.credentials import Credentials
+
+        access_token = short_lived_token(
+            "GOOGLE_OAUTH_ACCESS_TOKEN",
+            ["gcloud", "auth", "print-access-token"],
+        )
+        credentials = Credentials(token=access_token)
+
+    checks = [
+        lambda result: check_firestore(result, credentials=credentials),
+        lambda result: check_cloud_tasks(result, credentials=credentials),
+        lambda result: check_bigquery(result, credentials=credentials),
+        lambda result: check_planner_model(result, credentials=credentials),
+    ]
     if not args.skip_worker:
-        checks.insert(0, check_worker_readiness)
+        checks.insert(
+            0,
+            lambda result: check_worker_readiness(
+                result,
+                use_gcloud_auth=args.gcloud_auth,
+            ),
+        )
 
     try:
         for check in checks:

@@ -9,6 +9,7 @@ from decimal import Decimal
 from typing import Dict, Any, List, Optional
 from contracts.models import ExperimentPlan, ChangeEvent
 from contracts.hashing import compute_canonical_hash, generate_plan_id
+from config import settings
 
 
 @dataclass
@@ -28,18 +29,34 @@ class PlanPolicyValidator:
         self,
         supported_config_ids: Optional[List[str]] = None,
         supported_task_ids: Optional[List[str]] = None,
+        configuration_repository=None,
     ):
-        self.supported_config_ids = set(supported_config_ids or [
-            "cfg_948a3f81e3a1b029",
-            "cfg_4f1b82d3e9a0c784",
-            "cfg_7c2a93e4f1b80d19",
-        ])
+        if supported_config_ids is not None:
+            self.supported_config_ids = set(supported_config_ids)
+        elif settings.use_local_mock and configuration_repository is None:
+            self.supported_config_ids = {
+                "cfg_948a3f81e3a1b029",
+                "cfg_4f1b82d3e9a0c784",
+                "cfg_7c2a93e4f1b80d19",
+            }
+        else:
+            self.supported_config_ids = None
+        self.configuration_repository = configuration_repository
         self.supported_task_ids = set(supported_task_ids or [
             "TASK-001",
             "TASK-002",
             "TASK-003",
             "TASK-004",
         ])
+
+    def _configuration_exists(self, configuration_id: str) -> bool:
+        if self.supported_config_ids is not None:
+            return configuration_id in self.supported_config_ids
+        if self.configuration_repository is None:
+            from execution.configuration_repository import get_configuration_repository
+
+            self.configuration_repository = get_configuration_repository()
+        return self.configuration_repository.get_configuration(configuration_id) is not None
 
     def evaluate_plan(
         self,
@@ -64,13 +81,37 @@ class PlanPolicyValidator:
                 f"Missing or mismatched baseline configuration. Expected '{expected_baseline}', "
                 f"got '{plan.baseline_configuration_id}'"
             )
+        elif not self._configuration_exists(plan.baseline_configuration_id):
+            reasons.append(f"Unregistered baseline configuration '{plan.baseline_configuration_id}'.")
+
+        expected_event_id = trigger_event.get("event_id")
+        expected_correlation_id = trigger_event.get("correlation_id")
+        expected_experiment_id = (
+            f"exp_{expected_correlation_id.removeprefix('corr_')}"
+            if expected_correlation_id
+            else None
+        )
+        if expected_event_id and plan.event_id != expected_event_id:
+            reasons.append(f"Plan event_id does not match trigger event '{expected_event_id}'.")
+        if expected_correlation_id and plan.correlation_id != expected_correlation_id:
+            reasons.append("Plan correlation_id does not match the trigger event.")
+        if expected_experiment_id and plan.experiment_id != expected_experiment_id:
+            reasons.append("Plan experiment_id is not derived from the trigger correlation_id.")
+        if not settings.use_local_mock and plan.planner_model != settings.planner_model:
+            reasons.append(
+                f"Plan planner_model must match configured model '{settings.planner_model}'."
+            )
 
         # 3. Candidate Configuration Set
         if not plan.candidate_configuration_ids:
             reasons.append("ExperimentPlan must include at least 1 candidate configuration.")
+        elif len(plan.candidate_configuration_ids) != 1:
+            reasons.append("Frozen aggregation policy requires exactly 1 candidate configuration.")
         else:
             for cfg_id in plan.candidate_configuration_ids:
-                if cfg_id not in self.supported_config_ids:
+                if cfg_id == plan.baseline_configuration_id:
+                    reasons.append("Candidate configuration must differ from the baseline.")
+                elif not self._configuration_exists(cfg_id):
                     reasons.append(f"Unregistered candidate configuration '{cfg_id}'.")
 
         # 4. Task Cohort Membership

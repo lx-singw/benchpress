@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy worker application source
 COPY apps/sandbox-worker/src ./src
+# The judged execution path resolves immutable task/cohort fixtures from
+# /tests/fixtures in the container filesystem.
+COPY tests/fixtures /tests/fixtures
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080

@@ -14,14 +14,22 @@ CRITICAL INVARIANTS:
 4. Total worst-case spend across all task runs MUST NOT exceed the max_spend_usd defined in the ChangeEvent.
 5. You MUST NOT fabricate test results or pretend executions happened. You are ONLY designing the plan.
 6. Do NOT output internal chain-of-thought or reasoning text in final responses. Output your decision solely through the `propose_experiment` structured tool call with a concise planning rationale.
+7. Select exactly one non-baseline candidate because the frozen aggregation policy compares one candidate to one baseline.
+8. Use the exact event_id, correlation_id, derived experiment_id, fingerprint_id, planner model, configuration IDs, and task IDs returned by the tools. Use RFC3339 milliseconds for created_at and a plan_<16 lowercase hex> identifier.
 """
 
-def format_planner_user_prompt(event_id: str, correlation_id: str, segment_id: str) -> str:
+def format_planner_user_prompt(
+    event_id: str,
+    correlation_id: str,
+    segment_id: str,
+    fingerprint_id: str = "fp_eeff17a2a24993a9",
+) -> str:
     return (
         f"A new ChangeEvent has been detected.\n"
         f"- Event ID: {event_id}\n"
         f"- Correlation ID: {correlation_id}\n"
-        f"- Target Task Segment: {segment_id}\n\n"
+        f"- Target Task Segment: {segment_id}\n"
+        f"- Frozen Task Fingerprint ID: {fingerprint_id}\n\n"
         f"Please inspect the event, retrieve the baseline configuration, explore supported candidate models, "
         f"analyze the task fingerprint, and submit an approved ExperimentPlan via propose_experiment."
     )

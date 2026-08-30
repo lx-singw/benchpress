@@ -104,6 +104,13 @@ python3.12 scripts/preflight_release.py \
   --output artifacts/release/preflight-complete.json
 ```
 
+When the operator has an active `gcloud` user session but no ADC credential,
+add `--gcloud-auth`. This uses only short-lived access and identity tokens from
+the current CLI account; ADC remains the default for service-account and
+workload-identity environments. Containerized operators may inject those tokens
+as `GOOGLE_OAUTH_ACCESS_TOKEN` and `GOOGLE_OAUTH_ID_TOKEN`; the report never
+records either value.
+
 The complete report must say `PASS` and retain the requested and provider-returned eligible model IDs, response ID, usage metadata, response-text digest, Firestore transaction, queue, required BigQuery tables, worker URL, and matching release SHA. This is intentionally spend-producing and is never part of ordinary unit tests.
 
 ## 5. Immutable deployment
@@ -144,7 +151,18 @@ It must verify the web release health response, authenticated private worker rea
 
 ## 6. Primary measured rehearsal
 
-1. Confirm the active baseline policy and immutable configuration documents exist in the release-prefixed Firestore collections.
+1. Validate and immutably seed the active baseline policy, exact native
+   configurations, and task fingerprint from a frozen release-input document:
+
+```bash
+python3.12 scripts/seed_rehearsal_inputs.py artifacts/release/rehearsal-inputs.json \
+  --dry-run --output artifacts/release/rehearsal-inputs-validation.json
+python3.12 scripts/seed_rehearsal_inputs.py artifacts/release/rehearsal-inputs.json \
+  --output artifacts/release/rehearsal-inputs-seeded.json
+```
+
+Add `--gcloud-auth` under the same short-lived-token conditions documented for
+preflight. The seeder is create-only/idempotent and rejects conflicting content.
 2. Prepare a new schema-valid `ChangeEvent`. Use new event/correlation IDs, an authoritative source checksum, the frozen baseline version/configuration, the authorized budget/deadline, and `replay=false` for a real detected change or `source_kind=SYNTHETIC_REPLAY`, `replay=true`, and an explicit label for a replay. A replay may exercise the workflow but must never misrepresent the trigger as an observed provider event.
 3. Validate it locally against `packages/contracts/schemas/change-event.v1.json`.
 4. Submit once and retain the complete `202` response:

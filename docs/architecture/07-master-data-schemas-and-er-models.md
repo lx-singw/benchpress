@@ -1,7 +1,7 @@
 # Master Data Dictionary, Entity-Relationship Models & Storage Schemas
 
 > **Document ID:** `BP-ARCH-007`  
-> **Status:** Approved / Production-Grade Specification  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design ($5,000) • Google Cloud All Things Agentic Hackathon (2026)  
 > **Target Audience:** Cloud Data Architects, Site Reliability Engineers, Enterprise Security Reviewers, Hackathon Judges
 

@@ -1,7 +1,7 @@
 # Deployment Runbook, Multi-Stage CI/CD & Terraform Provisioning
 
 > **Document ID:** `BP-IMP-003`  
-> **Status:** Approved / Production Standard  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design & The Taskmaster • Google Cloud Hackathon (2026)
 
 ---

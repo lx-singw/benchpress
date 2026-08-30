@@ -33,6 +33,20 @@ def generate_ulid() -> str:
     return f"{time_part}{rand_part}"
 
 
+def generate_deterministic_ulid(value: Any) -> str:
+    """Derive a stable ULID-shaped identifier from canonical content.
+
+    This is intentionally not time-sortable. It is used for retry-stable object IDs
+    whose contracts require the ULID alphabet and width.
+    """
+    number = int.from_bytes(hashlib.sha256(canonical_json_dumps(value).encode("utf-8")).digest()[:16], "big")
+    chars = []
+    for _ in range(26):
+        chars.append(CROCKFORD_BASE32[number & 31])
+        number >>= 5
+    return "".join(reversed(chars))
+
+
 def utc_now_rfc3339() -> str:
     """Format current UTC time matching strict 3-digit millisecond RFC 3339 regex: YYYY-MM-DDTHH:MM:SS.sssZ"""
     now = datetime.now(timezone.utc)

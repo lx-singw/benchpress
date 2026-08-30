@@ -46,27 +46,33 @@ def test_setup_secrets_environment_validation_and_hmac():
 
 
 def test_deploy_script_orchestration_flow():
-    """Verify scripts/gcp_deploy_all.sh integrates bootstrap, secrets, terraform, and smoke test."""
+    """Verify the canonical deploy integrates bootstrap, immutable images, Terraform, and smoke tests."""
     content = (SCRIPTS_DIR / "gcp_deploy_all.sh").read_text(encoding="utf-8")
 
     assert "gcp_bootstrap.sh" in content
-    assert "gcp_setup_secrets.sh" in content
     assert "terraform apply" in content
     assert "gcp_smoke_test.sh" in content
-    assert "secret_scanner.py" in content
+    assert "verify_monorepo.sh" in content
+    assert "gcloud artifacts docker images describe" in content
     assert "--skip-bootstrap" in content
-    assert "--skip-secrets" in content
+    assert "gcp_setup_secrets.sh" not in content
+    assert "Vertex AI workload" in content
 
 
 def test_smoke_test_endpoint_verification_coverage():
-    """Verify scripts/gcp_smoke_test.sh covers benchmarks, routing, and trajectory dispatch."""
+    """Verify the cloud smoke test is real, release-bound, and fail closed."""
     content = (SCRIPTS_DIR / "gcp_smoke_test.sh").read_text(encoding="utf-8")
 
-    assert "/api/v1/benchmarks" in content
-    assert "/api/v1/routing-recommendation" in content
-    assert "/api/v1/trajectory-run" in content
-    assert 'DATASET_NAME="benchpress_${ENV}_analytics"' in content or "benchpress_dev_analytics" in content
+    assert "/api/healthz" in content
+    assert "/readyz" in content
+    assert "print-identity-token" in content
+    assert "EXPECTED_RELEASE_SHA" in content
+    assert "gcloud tasks queues describe" in content
+    assert "workflow_events" in content
+    assert "benchpress_dev_analytics" in content
     assert "benchpress_analytics" in content
+    assert "mock.a.run.app" not in content
+    assert "100% healthy" not in content
 
 
 def test_teardown_script_safety_guards():

@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertOctagon, HelpCircle, ShieldX, TrendingDown, CheckCircle2 } from "lucide-react";
+import { AlertOctagon, TrendingDown } from "lucide-react";
 
 interface WhyNotCheapestProps {
   whyNotCheapest?: string;
@@ -7,13 +7,8 @@ interface WhyNotCheapestProps {
 }
 
 export function WhyNotCheapest({ whyNotCheapest, whatWouldReverseIt }: WhyNotCheapestProps) {
-  const explanation =
-    whyNotCheapest ||
-    "gemini-2.5-flash was $0.075/1M tokens (16x cheaper per raw token), but failed 2 out of 4 deterministic task assertions (TASK-003 Unicode Chunking & TASK-004 AST Regex Boundary). Under failure-inclusive CPR accounting, unguided cheap models produce infinite resolution cost on failing tasks.";
-
-  const reversal =
-    whatWouldReverseIt ||
-    "Candidate configuration experiencing quality regression on canary suite or provider pricing increase > 35%.";
+  const explanation = whyNotCheapest ?? "No retained cheapest-candidate comparison is available.";
+  const reversal = whatWouldReverseIt ?? "No versioned reversal criterion is available.";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -39,32 +34,6 @@ export function WhyNotCheapest({ whyNotCheapest, whatWouldReverseIt }: WhyNotChe
           {explanation}
         </p>
 
-        {/* Breakdown of Why the Cheaper Model Failed */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10 text-xs font-mono">
-          <div className="rounded-lg bg-black/40 border border-rose-500/20 p-3">
-            <div className="text-rose-400 font-semibold flex items-center gap-1.5 mb-1">
-              <ShieldX className="w-4 h-4" />
-              gemini-2.5-flash ($0.075 / 1M)
-            </div>
-            <div className="text-gray-400 text-[11px] space-y-1">
-              <div>• Resolution Rate: <span className="text-rose-400 font-bold">50.0% (2/4)</span></div>
-              <div>• Failure Reasons: <span className="text-rose-300">ORACLE_ASSERTION_FAILED</span></div>
-              <div>• Effective CPR: <span className="text-rose-400 font-bold">Infinite / Degraded</span></div>
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-emerald-500/[0.06] border border-emerald-500/30 p-3">
-            <div className="text-emerald-400 font-semibold flex items-center gap-1.5 mb-1">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Selected Candidate (t=2048)
-            </div>
-            <div className="text-gray-300 text-[11px] space-y-1">
-              <div>• Resolution Rate: <span className="text-emerald-400 font-bold">100.0% (4/4)</span></div>
-              <div>• Failure Reasons: <span className="text-emerald-400 font-bold">None (0 failures)</span></div>
-              <div>• Effective CPR: <span className="text-emerald-400 font-bold">$0.005400 / pass</span></div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* What Would Reverse It Box */}
@@ -82,7 +51,7 @@ export function WhyNotCheapest({ whyNotCheapest, whatWouldReverseIt }: WhyNotChe
         </div>
 
         <div className="mt-4 pt-3 border-t border-white/10 text-[11px] font-mono text-gray-500">
-          Continuous canary sentinels run on each deployment. If quality degrades below 75%, atomic CAS initiates instant fallback.
+          Reversal criteria must come from the stored, versioned decision receipt.
         </div>
       </div>
     </div>

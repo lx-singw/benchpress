@@ -25,6 +25,75 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "runtime_mode" {
+  type        = string
+  description = "Explicit application runtime mode"
+  validation {
+    condition     = contains(["development", "rehearsal", "production"], var.runtime_mode)
+    error_message = "runtime_mode must be development, rehearsal, or production."
+  }
+}
+
+variable "release_sha" {
+  type        = string
+  description = "Exact clean Git release commit deployed to both services"
+  validation {
+    condition     = can(regex("^[a-f0-9]{40}$", var.release_sha))
+    error_message = "release_sha must be a full lowercase 40-character Git SHA."
+  }
+}
+
+variable "planner_model" {
+  type        = string
+  description = "Account-verified exact eligible Gemini 3.5+ planner model ID"
+  validation {
+    condition     = can(regex("^gemini-[3-9]\\.[5-9]", var.planner_model))
+    error_message = "planner_model must be an exact account-verified Gemini 3.5+ model ID."
+  }
+}
+
+variable "web_image" {
+  type        = string
+  description = "Immutable web image URL tagged with the full release SHA or pinned by digest"
+  validation {
+    condition     = can(regex("(@sha256:[a-f0-9]{64}|:[a-f0-9]{40})$", var.web_image))
+    error_message = "web_image must end in a sha256 digest or the full 40-character release SHA tag."
+  }
+}
+
+variable "worker_image" {
+  type        = string
+  description = "Immutable worker image URL tagged with the full release SHA or pinned by digest"
+  validation {
+    condition     = can(regex("(@sha256:[a-f0-9]{64}|:[a-f0-9]{40})$", var.worker_image))
+    error_message = "worker_image must end in a sha256 digest or the full 40-character release SHA tag."
+  }
+}
+
+variable "firestore_collection_prefix" {
+  type        = string
+  description = "Environment-isolated Firestore collection namespace"
+  default     = "benchpress"
+}
+
+variable "routing_decision_experiment_id" {
+  type        = string
+  description = "Published measured experiment authorized for the routing read endpoint"
+  default     = ""
+}
+
+variable "max_matrix_spend_usd" {
+  type        = string
+  description = "Frozen matrix spend ceiling"
+  default     = "0.500000"
+}
+
+variable "per_run_spend_ceiling_usd" {
+  type        = string
+  description = "Frozen per-run spend ceiling"
+  default     = "0.050000"
+}
+
 variable "zone" {
   type        = string
   description = "GCP Primary Zone for zonal resources"

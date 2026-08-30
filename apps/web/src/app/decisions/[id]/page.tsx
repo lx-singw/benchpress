@@ -62,9 +62,9 @@ export default async function DecisionPage({ params }: DecisionPageProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            LIVE VERIFIED RECORD
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-mono ${receipt.truth_class === "BENCHPRESS_MEASURED" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-purple-500/10 border-purple-500/30 text-purple-300"}`}>
+            <span className={`w-2 h-2 rounded-full ${receipt.truth_class === "BENCHPRESS_MEASURED" ? "bg-emerald-400" : "bg-purple-400"}`} />
+            {receipt.truth_class === "BENCHPRESS_MEASURED" ? "PUBLISHED MEASURED RECORD" : "DEMO FIXTURE RECORD"}
           </div>
         </div>
       </div>

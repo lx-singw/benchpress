@@ -1,127 +1,115 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# Benchpress: Automated Live Cloud Smoke Tester (`gcp_smoke_test.sh`)
-# Usage: ./scripts/gcp_smoke_test.sh [--env dev|prod] [--project-id ID] [--region REGION]
-# ==============================================================================
+# Fail-closed smoke test for one deployed Benchpress release.
+#
+# This test performs no provider run and creates no measured evidence. It proves
+# that the immutable services, private worker identity boundary, Cloud Tasks
+# queue, and required BigQuery tables are reachable. Pass --experiment-id only
+# after a measured decision has been published.
 set -euo pipefail
 
 ENV="dev"
-PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-benchpress-platform}"
+PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-}"
 REGION="${GOOGLE_CLOUD_REGION:-us-central1}"
 WEB_URL=""
+EXPERIMENT_ID=""
+EXPECTED_RELEASE_SHA="${EXPECTED_RELEASE_SHA:-}"
 
-# --- Parse CLI Arguments ---
 while [[ $# -gt 0 ]]; do
-  case $1 in
-    --env)
-      ENV="$2"
-      shift 2
-      ;;
-    --project-id)
-      PROJECT_ID="$2"
-      shift 2
-      ;;
-    --region)
-      REGION="$2"
-      shift 2
-      ;;
-    --web-url)
-      WEB_URL="$2"
-      shift 2
-      ;;
+  case "$1" in
+    --env) ENV="$2"; shift 2 ;;
+    --project-id) PROJECT_ID="$2"; shift 2 ;;
+    --region) REGION="$2"; shift 2 ;;
+    --web-url) WEB_URL="$2"; shift 2 ;;
+    --experiment-id) EXPERIMENT_ID="$2"; shift 2 ;;
+    --release-sha) EXPECTED_RELEASE_SHA="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 [--env dev|prod] [--project-id <GCP_PROJECT>] [--region <GCP_REGION>] [--web-url <URL>]"
-      echo ""
-      echo "Options:"
-      echo "  --env         Target deployment environment ('dev' or 'prod', default: dev)"
-      echo "  --project-id  Target GCP Project ID (default: $PROJECT_ID)"
-      echo "  --region      Target GCP Region (default: $REGION)"
-      echo "  --web-url     Custom Web URL to test against"
-      echo "  -h, --help    Show this help message"
+      echo "Usage: $0 --env dev|prod --project-id ID [--region REGION] [--web-url URL] [--release-sha SHA] [--experiment-id ID]"
       exit 0
       ;;
-    *)
-      echo "❌ Error: Unknown CLI option '$1'"
-      exit 1
-      ;;
+    *) echo "Error: unknown option '$1'" >&2; exit 2 ;;
   esac
 done
 
 if [[ "$ENV" != "dev" && "$ENV" != "prod" ]]; then
-  echo "❌ Error: --env must be either 'dev' or 'prod' (received: '$ENV')."
-  exit 1
+  echo "Error: --env must be dev or prod." >&2
+  exit 2
+fi
+if [[ -z "$PROJECT_ID" ]]; then
+  echo "Error: --project-id or GOOGLE_CLOUD_PROJECT is required." >&2
+  exit 2
+fi
+for command_name in gcloud bq curl jq git; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "Error: required command is unavailable: $command_name" >&2
+    exit 2
+  }
+done
+if [[ -z "$EXPECTED_RELEASE_SHA" ]]; then
+  EXPECTED_RELEASE_SHA="$(git rev-parse HEAD)"
+fi
+if [[ ! "$EXPECTED_RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
+  echo "Error: expected release SHA must be a full lowercase Git SHA." >&2
+  exit 2
 fi
 
-ENV_UPPER="${ENV^^}"
-echo "🧪 =================================================================="
-echo "   BENCHPRESS: AUTOMATED LIVE CLOUD SMOKE TEST [${ENV_UPPER}]"
-echo "   Target Project: $PROJECT_ID | Region: $REGION"
-echo "=================================================================="
-
-# 1. Resolve Cloud Run Web Service Endpoint
-if [ -z "$WEB_URL" ]; then
-  if command -v gcloud >/dev/null 2>&1; then
-    WEB_URL=$(gcloud run services describe "benchpress-web-${ENV}" \
-      --project="$PROJECT_ID" \
-      --region="$REGION" \
-      --format="value(status.url)" 2>/dev/null || echo "https://benchpress-web-${ENV}-mock.a.run.app")
-  else
-    WEB_URL="https://benchpress-web-${ENV}-mock.a.run.app"
-  fi
-fi
-
-echo "🌐 Target Web Endpoint: $WEB_URL"
-
-# 2. Smoke Test: API Health & Leaderboard Retrieval (GET /api/v1/benchmarks)
-echo ""
-echo "🔍 [1/4] Testing GET /api/v1/benchmarks..."
-if [[ "$WEB_URL" == *"mock"* ]]; then
-  echo "   ✓ [Mock] HTTP 200 OK: Retrieved continuous 12-model Pareto leaderboard dataset."
-else
-  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${WEB_URL}/api/v1/benchmarks" || echo "200")
-  echo "   ✓ HTTP ${HTTP_STATUS} OK: Verified continuous multi-model leaderboard ranking."
-fi
-
-# 3. Smoke Test: Dynamic Routing Recommendation (POST /api/v1/routing-recommendation)
-echo ""
-echo "🔍 [2/4] Testing POST /api/v1/routing-recommendation (FinOps Pareto Weights)..."
-if [[ "$WEB_URL" == *"mock"* ]]; then
-  echo "   ✓ [Mock] HTTP 200 OK: Recommends HYBRID_CHOREOGRAPHY (87.2% cost reduction vs Claude 3.7)."
-else
-  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${WEB_URL}/api/v1/routing-recommendation" \
-    -H "Content-Type: application/json" \
-    -d '{"task_suite":"SWE_BENCH_VERIFIED","cost_weight":0.8,"accuracy_weight":0.2}' || echo "200")
-  echo "   ✓ HTTP ${HTTP_STATUS} OK: Recommended 2-tier hybrid choreography."
-fi
-
-# 4. Smoke Test: Asynchronous Cloud Tasks Dispatch (POST /api/v1/trajectory-run)
-echo ""
-echo "🔍 [3/4] Testing POST /api/v1/trajectory-run (Cloud Tasks Queue Ingestion)..."
-if [[ "$WEB_URL" == *"mock"* ]]; then
-  echo "   ✓ [Mock] HTTP 202 Accepted: Task 'django__django-11099' enqueued to '${ENV}-trajectory-queue'."
-else
-  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${WEB_URL}/api/v1/trajectory-run" \
-    -H "Content-Type: application/json" \
-    -d '{"task_suite":"SWE_BENCH_VERIFIED","task_id":"django__django-11099","model_id":"hybrid-gemini-pro-flash"}' || echo "202")
-  echo "   ✓ HTTP ${HTTP_STATUS} Accepted: Dispatched to Cloud Tasks queue."
-fi
-
-# 5. Smoke Test: BigQuery Dataset Schema & Isolation Invariant
-DATASET_NAME="benchpress_${ENV}_analytics"
-if [ "$ENV" = "prod" ]; then
+WEB_SERVICE="benchpress-web-${ENV}"
+WORKER_SERVICE="benchpress-worker-${ENV}"
+QUEUE_NAME="${ENV}-trajectory-queue"
+DATASET_NAME="benchpress_dev_analytics"
+if [[ "$ENV" == "prod" ]]; then
   DATASET_NAME="benchpress_analytics"
 fi
 
-echo ""
-echo "🔍 [4/4] Verifying BigQuery Dataset Invariant: '$DATASET_NAME'..."
-if command -v bq >/dev/null 2>&1; then
-  bq show "${PROJECT_ID}:${DATASET_NAME}" >/dev/null 2>&1 || echo "   (Dataset check confirmed)"
-  echo "   ✓ Verified dataset '$DATASET_NAME' exists with day-partitioned 'trajectories' table."
-else
-  echo "   ✓ [Mock] Verified dataset '$DATASET_NAME' isolation and partitioning."
+if [[ -z "$WEB_URL" ]]; then
+  WEB_URL="$(gcloud run services describe "$WEB_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')"
+fi
+WORKER_URL="$(gcloud run services describe "$WORKER_SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')"
+[[ "$WEB_URL" == https://* ]] || { echo "Error: invalid deployed web URL." >&2; exit 1; }
+[[ "$WORKER_URL" == https://* ]] || { echo "Error: invalid deployed worker URL." >&2; exit 1; }
+
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf -- "$TEMP_DIR"' EXIT
+
+require_status() {
+  local expected="$1"
+  local output_file="$2"
+  local url="$3"
+  shift 3
+  local observed
+  observed="$(curl --silent --show-error --output "$output_file" --write-out '%{http_code}' "$@" "$url")"
+  if [[ "$observed" != "$expected" ]]; then
+    echo "Error: $url returned HTTP $observed; expected $expected." >&2
+    return 1
+  fi
+}
+
+require_status 200 "$TEMP_DIR/web-health.json" "${WEB_URL}/api/healthz"
+jq -e --arg sha "$EXPECTED_RELEASE_SHA" \
+  '.status == "healthy" and .release_sha == $sha and (.runtime_mode == "development" or .runtime_mode == "production")' \
+  "$TEMP_DIR/web-health.json" >/dev/null
+
+WORKER_TOKEN="$(gcloud auth print-identity-token --audiences="$WORKER_URL")"
+require_status 200 "$TEMP_DIR/worker-ready.json" "${WORKER_URL}/readyz" \
+  --header "Authorization: Bearer ${WORKER_TOKEN}"
+jq -e --arg sha "$EXPECTED_RELEASE_SHA" \
+  '.status == "ready" and .release_sha == $sha' "$TEMP_DIR/worker-ready.json" >/dev/null
+
+gcloud tasks queues describe "$QUEUE_NAME" \
+  --project="$PROJECT_ID" --location="$REGION" --format=json >"$TEMP_DIR/queue.json"
+jq -e '.state == "RUNNING"' "$TEMP_DIR/queue.json" >/dev/null
+
+for table_name in trajectories fsm_turns workflow_events; do
+  bq --project_id="$PROJECT_ID" show "${PROJECT_ID}:${DATASET_NAME}.${table_name}" >/dev/null
+done
+
+if [[ -n "$EXPERIMENT_ID" ]]; then
+  require_status 200 "$TEMP_DIR/decision.json" "${WEB_URL}/api/v1/decisions/${EXPERIMENT_ID}"
+  jq -e --arg id "$EXPERIMENT_ID" \
+    '.experiment_id == $id and .truth_class == "BENCHPRESS_MEASURED" and .publication_status == "PUBLISHED"' \
+    "$TEMP_DIR/decision.json" >/dev/null
 fi
 
-echo ""
-echo "🎉 =================================================================="
-echo "   ALL SMOKE TESTS PASSED (4/4)! Environment [${ENV_UPPER}] is 100% healthy."
-echo "=================================================================="
+echo "PASS: deployed services match release ${EXPECTED_RELEASE_SHA}; worker auth, queue, and BigQuery checks succeeded."
+if [[ -n "$EXPERIMENT_ID" ]]; then
+  echo "PASS: published measured decision ${EXPERIMENT_ID} is readable from the public API."
+fi

@@ -4,12 +4,15 @@ Coordinates the autonomous multi-turn tool-calling loop over sovereign tools.
 """
 
 import json
+import hashlib
 import logging
 from typing import Dict, Any, Optional, Tuple, List
 from .prompts import ORCHESTRATOR_SYSTEM_PROMPT, format_planner_user_prompt
 from .tools import OrchestratorToolRegistry, GEMINI_TOOL_DECLARATIONS
 from .gemini_client import GeminiOrchestratorClient, GeminiUsageMetadata
 from contracts.hashing import generate_plan_id
+from contracts.hashing import utc_now_rfc3339
+from config import settings
 
 logger = logging.getLogger("benchpress.orchestrator.planner")
 
@@ -26,6 +29,7 @@ class GeminiEvaluationPlanner:
         self.client = gemini_client or GeminiOrchestratorClient()
         self.tool_registry = tool_registry or OrchestratorToolRegistry()
         self.max_turns = max_turns
+        self.last_invocation_record: Optional[Dict[str, Any]] = None
 
     def run(
         self,
@@ -43,8 +47,9 @@ class GeminiEvaluationPlanner:
         if self.client.is_live():
             return self._run_live_loop(event_id, correlation_id, segment_id, user_prompt)
         
-        # Otherwise execute simulated multi-turn tool execution
-        return self._run_simulated_loop(event_id, correlation_id, segment_id)
+        if settings.use_local_mock:
+            return self._run_simulated_loop(event_id, correlation_id, segment_id)
+        raise RuntimeError("Eligible Gemini planner client is unavailable outside local_mock mode")
 
     def _run_simulated_loop(
         self,
@@ -91,7 +96,7 @@ class GeminiEvaluationPlanner:
             "max_turns_per_run": 15,
             "quality_floor_pass_rate": 0.75,
             "early_stop_consecutive_failures": 2,
-            "planner_model": "gemini-2.5-pro",
+            "planner_model": settings.planner_model,
             "plan_policy_version": "plan_pol_v1_taskmaster",
             "planning_rationale": "Evaluating candidate configuration with 2048 thinking tokens vs baseline on judged SWE-bench tasks",
         }
@@ -101,7 +106,7 @@ class GeminiEvaluationPlanner:
             "schema_version": "1.0.0",
             "plan_id": plan_id,
             **plan_content,
-            "created_at": "2026-08-29T10:00:20.000Z",
+            "created_at": utc_now_rfc3339(),
         }
 
         usage = GeminiUsageMetadata(
@@ -111,8 +116,28 @@ class GeminiEvaluationPlanner:
             total_tokens=2270,
             latency_ms=1200,
             finish_reason="STOP",
-            model_id="gemini-2.5-pro",
+            model_id=settings.planner_model,
         )
+
+        self.last_invocation_record = {
+            "schema_version": "1.0.0",
+            "truth_status": "DEMO_FIXTURE",
+            "correlation_id": correlation_id,
+            "requested_model": settings.planner_model,
+            "request_hash": hashlib.sha256(
+                json.dumps({"event_id": event_id, "segment_id": segment_id}, sort_keys=True).encode()
+            ).hexdigest(),
+            "tool_calls": [
+                "get_change_event",
+                "get_current_baseline",
+                "list_supported_configurations",
+                "get_task_fingerprint",
+                "list_candidate_tasks",
+                "propose_experiment",
+            ],
+            "usage": usage.__dict__,
+            "created_at": utc_now_rfc3339(),
+        }
 
         return proposed_plan, usage
 
@@ -127,6 +152,18 @@ class GeminiEvaluationPlanner:
         contents: List[Any] = [{"role": "user", "parts": [{"text": user_prompt}]}]
         accumulated_usage = GeminiUsageMetadata()
         proposed_plan: Optional[Dict[str, Any]] = None
+        observed_tool_calls: List[Dict[str, Any]] = []
+        request_hash = hashlib.sha256(
+            json.dumps(
+                {
+                    "system_instruction": ORCHESTRATOR_SYSTEM_PROMPT,
+                    "user_prompt": user_prompt,
+                    "tools": GEMINI_TOOL_DECLARATIONS,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
 
         for turn in range(self.max_turns):
             result = self.client.call_with_tools(
@@ -141,6 +178,10 @@ class GeminiEvaluationPlanner:
             accumulated_usage.reasoning_tokens += result.usage.reasoning_tokens
             accumulated_usage.total_tokens += result.usage.total_tokens
             accumulated_usage.latency_ms += result.usage.latency_ms
+            accumulated_usage.finish_reason = result.usage.finish_reason
+            accumulated_usage.model_id = result.usage.model_id
+            accumulated_usage.response_model = result.usage.response_model
+            accumulated_usage.response_ids.extend(result.usage.response_ids)
 
             if not result.function_calls:
                 # Terminal model response without function calls
@@ -150,10 +191,23 @@ class GeminiEvaluationPlanner:
             for fc in result.function_calls:
                 name = fc["name"]
                 args = fc["args"]
+                observed_tool_calls.append({"name": name, "arguments_hash": hashlib.sha256(json.dumps(args, sort_keys=True).encode()).hexdigest()})
                 tool_result = self._execute_tool(name, args)
 
                 if name == "propose_experiment":
                     proposed_plan = args.get("plan")
+                    self.last_invocation_record = {
+                        "schema_version": "1.0.0",
+                        "truth_status": "OBSERVED",
+                        "correlation_id": correlation_id,
+                        "requested_model": settings.planner_model,
+                        "response_model": accumulated_usage.response_model,
+                        "response_ids": accumulated_usage.response_ids,
+                        "request_hash": request_hash,
+                        "tool_calls": observed_tool_calls,
+                        "usage": accumulated_usage.__dict__,
+                        "created_at": utc_now_rfc3339(),
+                    }
                     return proposed_plan, accumulated_usage
 
                 # Append tool result to conversation history
@@ -171,6 +225,18 @@ class GeminiEvaluationPlanner:
                     }]
                 })
 
+        self.last_invocation_record = {
+            "schema_version": "1.0.0",
+            "truth_status": "OBSERVED",
+            "correlation_id": correlation_id,
+            "requested_model": settings.planner_model,
+            "response_model": accumulated_usage.response_model,
+            "response_ids": accumulated_usage.response_ids,
+            "request_hash": request_hash,
+            "tool_calls": observed_tool_calls,
+            "usage": accumulated_usage.__dict__,
+            "created_at": utc_now_rfc3339(),
+        }
         return proposed_plan, accumulated_usage
 
     def _execute_tool(self, name: str, args: Dict[str, Any]) -> Any:

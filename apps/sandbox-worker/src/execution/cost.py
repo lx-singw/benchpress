@@ -22,7 +22,9 @@ def calculate_observed_cost(
     one_million = Decimal("1000000")
 
     input_cost = (Decimal(usage.prompt_tokens) * p_price) / one_million
-    output_cost = (Decimal(usage.completion_tokens) * c_price) / one_million
+    # Provider reasoning/thought tokens are incurred output tokens even when
+    # they are not returned as visible candidate text.
+    output_cost = (Decimal(usage.completion_tokens + usage.reasoning_tokens) * c_price) / one_million
     total_cost = input_cost + output_cost
 
     quantized = total_cost.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)

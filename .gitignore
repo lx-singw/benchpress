@@ -36,6 +36,7 @@ gcp-credentials.json
 Thumbs.db
 
 # Test & Log Outputs
+artifacts/
 *.log
 *.jsonl
 data/
@@ -52,6 +53,7 @@ pnpm-debug.log*
 **/.terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan
 crash.log
 crash.*.log
 override.tf

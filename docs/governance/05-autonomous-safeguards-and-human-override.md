@@ -1,7 +1,7 @@
 # Autonomous Safeguards, Spending Ceilings & Emergency Kill-Switches
 
 > **Document ID:** `BP-GOV-005`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** The Fortified Enterprise Fleet & System Governance • Google Cloud Hackathon (2026)
 
 ---

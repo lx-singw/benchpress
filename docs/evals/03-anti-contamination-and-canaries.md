@@ -1,7 +1,7 @@
 # Anti-Contamination Protocols, Canary GUIDs & Dynamic Synthetic Mutators
 
 > **Document ID:** `BP-EVAL-003`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Benchmark Scientific Rigor • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

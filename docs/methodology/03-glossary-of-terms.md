@@ -1,7 +1,7 @@
 # Master Glossary of Agentic Economics, Indices & System Concepts
 
 > **Document ID:** `BP-METH-003`  
-> **Status:** Approved / Production-Grade Specification  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design & Scientific Rigor • Google Cloud All Things Agentic Hackathon (2026)  
 > **Target Audience:** Benchmark Researchers, Applied AI Economists, Enterprise Architects, Hackathon Judges
 

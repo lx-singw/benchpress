@@ -4,6 +4,7 @@
 # ==============================================================================
 
 environment                = "dev"
+runtime_mode               = "development"
 web_min_instances          = 0
 web_max_instances          = 5
 worker_min_instances       = 0

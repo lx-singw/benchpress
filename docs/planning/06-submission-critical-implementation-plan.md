@@ -9,6 +9,8 @@
 > **Roadmap dependency:** [Master build roadmap, Phase H](./00-master-build-roadmap.md#8-phase-hhackathon-critical-path)  
 > **Release gate:** [Final submission checklist](../hackathon/04-final-submission-checklist.md)
 
+> **2026-08-29 audit note:** The repository did not yet satisfy this plan end to end. Use the [G0 audit-remediation implementation plan](./07-g0-remediation-implementation-plan.md) as the current execution sequence; this document remains the original specification.
+
 ## 1. Purpose and required outcome
 
 This document converts the submission plan into an implementation specification. It deliberately narrows work to one real, replayable Taskmaster workflow and defines the code changes, contracts, persistence semantics, security controls, tests, deployment gates, evidence artifacts, and operating sequence needed to finish it.

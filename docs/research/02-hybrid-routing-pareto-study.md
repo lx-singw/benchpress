@@ -4,6 +4,8 @@
 > **Authors:** Benchpress Systems Research Group  
 > **Target Track:** Academic Thought Leadership & Model Routing • Google Cloud Hackathon (2026)
 
+> **Evidence disposition (2026-08-29): Historical synthetic study.** Task counts, model outcomes, percentages, latency, and Pareto results in this paper are unverified fixture/hypothesis values, not provider measurements or submission claims. Use the [implementation status](../00-implementation-status.md) and a verified `evidence/runs/<correlation_id>` bundle for current empirical claims.
+
 ---
 
 ## Abstract

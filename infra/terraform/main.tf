@@ -41,6 +41,8 @@ locals {
     "aiplatform.googleapis.com",
     "storage.googleapis.com",
     "secretmanager.googleapis.com",
+    "monitoring.googleapis.com",
+    "logging.googleapis.com",
     "vpcaccess.googleapis.com",
   ]
 }

@@ -13,6 +13,8 @@ from contracts.models import (
     PolicyVersion,
     ExperimentPlan,
 )
+from config import settings
+from policy.repository import get_policy_repository
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 MANIFESTS_DIR = REPO_ROOT / "tests" / "fixtures" / "manifests"
@@ -33,7 +35,21 @@ class OrchestratorToolRegistry:
         self.policy_store = policy_store or {}
         self.config_store = config_store or {}
         self.fingerprint_store = fingerprint_store or {}
-        self._load_defaults_if_empty()
+        self.firestore_client = None
+        if settings.use_local_mock:
+            self._load_defaults_if_empty()
+        else:
+            from google.cloud import firestore
+
+            self.firestore_client = firestore.Client(
+                project=settings.google_cloud_project,
+                database=settings.firestore_database_id,
+            )
+
+    def _collection(self, name: str):
+        if self.firestore_client is None:
+            raise RuntimeError("Firestore tool data is unavailable")
+        return self.firestore_client.collection(f"{settings.firestore_collection_prefix}_{name}")
 
     def _load_defaults_if_empty(self):
         """Seed default fixtures if store is empty."""
@@ -132,8 +148,12 @@ class OrchestratorToolRegistry:
         """Fetch sanitized ChangeEvent by its unique event_id."""
         if event_id in self.event_store:
             return self.event_store[event_id]
-        if self.event_store:
+        if settings.use_local_mock and self.event_store:
             return next(iter(self.event_store.values()))
+        if not settings.use_local_mock:
+            snapshot = self._collection("change_events").document(event_id).get()
+            if snapshot.exists:
+                return snapshot.to_dict()
         raise KeyError(f"ChangeEvent with event_id '{event_id}' not found.")
 
     # Tool 2: get_current_baseline
@@ -141,13 +161,21 @@ class OrchestratorToolRegistry:
         """Fetch current immutable active policy version and configuration for task segment."""
         if segment_id in self.policy_store:
             return self.policy_store[segment_id]
-        if self.policy_store:
+        if settings.use_local_mock and self.policy_store:
             return next(iter(self.policy_store.values()))
+        if not settings.use_local_mock:
+            policy = get_policy_repository().get_active_policy(segment_id)
+            if policy:
+                return policy.model_dump(mode="json")
         raise KeyError(f"Baseline policy for segment '{segment_id}' not found.")
 
     # Tool 3: list_supported_configurations
     def list_supported_configurations(self, provider: str, model_family: str) -> List[Dict[str, Any]]:
         """List pre-verified native configurations supported for the target provider and model family."""
+        if not settings.use_local_mock:
+            snapshots = self._collection("configurations").where("provider", "==", provider).stream()
+            results = [snapshot.to_dict() for snapshot in snapshots]
+            return [cfg for cfg in results if model_family in cfg.get("request_model", "")]
         results = [
             cfg for cfg in self.config_store.values()
             if cfg.get("provider") == provider
@@ -159,8 +187,12 @@ class OrchestratorToolRegistry:
         """Fetch workload complexity fingerprint and requirements."""
         if fingerprint_id in self.fingerprint_store:
             return self.fingerprint_store[fingerprint_id]
-        if self.fingerprint_store:
+        if settings.use_local_mock and self.fingerprint_store:
             return next(iter(self.fingerprint_store.values()))
+        if not settings.use_local_mock:
+            snapshot = self._collection("task_fingerprints").document(fingerprint_id).get()
+            if snapshot.exists:
+                return snapshot.to_dict()
         raise KeyError(f"TaskFingerprint '{fingerprint_id}' not found.")
 
     # Tool 5: list_candidate_tasks

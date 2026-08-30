@@ -18,7 +18,7 @@
   "known_limitations": [
     "Evaluated against judged 4-task SWE cohort; Wilson Score confidence interval 0.5101 - 1.0000."
   ],
-  "truth_class": "BENCHPRESS_MEASURED",
+  "truth_class": "DEMO_FIXTURE",
   "evidence_hash": "7d11f64f43477e60058b8f2d52528b3ee1dc2287c7e52bca7e868a2bf6cb862a",
   "code_commit_sha": "fb0a13b000000000000000000000000000000000",
   "created_at": "2026-08-29T10:05:30.000Z"

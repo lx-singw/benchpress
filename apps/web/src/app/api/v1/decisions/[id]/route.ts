@@ -53,5 +53,7 @@ export async function GET(
     candidate_configuration: candConfig,
     baseline_aggregate: baseAgg,
     candidate_aggregate: candAgg,
+  }, {
+    headers: { "Cache-Control": "no-store, max-age=0, must-revalidate" },
   });
 }

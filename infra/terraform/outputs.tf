@@ -36,3 +36,12 @@ output "artifact_bucket_name" {
   description = "Cloud Storage Artifact Bucket Name"
   value       = google_storage_bucket.artifacts.name
 }
+
+output "release_sha" { value = var.release_sha }
+output "web_image" { value = var.web_image }
+output "worker_image" { value = var.worker_image }
+output "web_service_account" { value = google_service_account.web_runtime.email }
+output "worker_service_account" { value = google_service_account.worker_runtime.email }
+output "tasks_invoker_service_account" { value = google_service_account.cloud_tasks_invoker.email }
+output "web_latest_created_revision" { value = google_cloud_run_v2_service.web.latest_created_revision }
+output "worker_latest_created_revision" { value = google_cloud_run_v2_service.sandbox_worker.latest_created_revision }

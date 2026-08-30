@@ -1,7 +1,7 @@
 # Enhanced 13-State Agentic Runtime, Supervisor AST Healer & Distributed Sagas
 
 > **Document ID:** `BP-ARCH-002`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design ($5,000) & The Taskmaster • Google Cloud Hackathon (2026)
 
 ---

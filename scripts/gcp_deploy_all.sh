@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Benchpress: Master 1-Click Multi-Environment Deployer (`gcp_deploy_all.sh`)
-# Target Track: Best Architectural Design ($5,000) & The Fortified Enterprise Fleet
+# Benchpress: immutable G0 deployment entry point (`gcp_deploy_all.sh`)
+# Target Track: The Taskmaster
 # Usage: ./scripts/gcp_deploy_all.sh [--env dev|prod] [--project-id ID] [--region REGION]
 # ==============================================================================
 set -euo pipefail
@@ -10,7 +10,6 @@ ENV="dev"
 PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-benchpress-platform}"
 REGION="${GOOGLE_CLOUD_REGION:-us-central1}"
 SKIP_BOOTSTRAP=false
-SKIP_SECRETS=false
 SKIP_TERRAFORM=false
 SKIP_DOCKER=false
 SKIP_SMOKE=false
@@ -34,10 +33,6 @@ while [[ $# -gt 0 ]]; do
       SKIP_BOOTSTRAP=true
       shift 1
       ;;
-    --skip-secrets)
-      SKIP_SECRETS=true
-      shift 1
-      ;;
     --skip-terraform)
       SKIP_TERRAFORM=true
       shift 1
@@ -58,7 +53,6 @@ while [[ $# -gt 0 ]]; do
       echo "  --project-id      Target Google Cloud Project ID (default: $PROJECT_ID)"
       echo "  --region          Target Google Cloud Region (default: $REGION)"
       echo "  --skip-bootstrap  Skip GCP API enablement & project bootstrap"
-      echo "  --skip-secrets    Skip Secret Manager provisioning"
       echo "  --skip-terraform  Skip Terraform infrastructure apply"
       echo "  --skip-docker     Skip Docker container build and push"
       echo "  --skip-smoke      Skip automated post-deployment smoke test"
@@ -77,16 +71,33 @@ if [[ "$ENV" != "dev" && "$ENV" != "prod" ]]; then
   exit 1
 fi
 
+RELEASE_SHA="$(git rev-parse HEAD)"
+if [[ ! "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
+  echo "Error: release commit must be a full 40-character Git SHA."
+  exit 1
+fi
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "Error: immutable release images must be built from a clean working tree."
+  exit 1
+fi
+PLANNER_MODEL="${PLANNER_MODEL:-}"
+if [[ ! "$PLANNER_MODEL" =~ ^gemini-[3-9]\.[5-9] ]]; then
+  echo "Error: PLANNER_MODEL must be the exact account-verified eligible Gemini 3.5+ model ID."
+  exit 1
+fi
+WEB_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/benchpress-artifacts/web:${RELEASE_SHA}"
+WORKER_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/benchpress-artifacts/sandbox-worker:${RELEASE_SHA}"
+
 ENV_UPPER="${ENV^^}"
 echo "🚀 =================================================================="
-echo "   BENCHPRESS: MASTER 1-CLICK CLOUD DEPLOYER [${ENV_UPPER}]"
+echo "   BENCHPRESS: IMMUTABLE G0 DEPLOYMENT [${ENV_UPPER}]"
 echo "   Target Project: $PROJECT_ID | Region: $REGION"
 echo "=================================================================="
 
-# 0. High-Entropy Secret Leakage Armor Scan
+# 0. Complete non-live release gate before any cloud mutation.
 echo ""
-echo "🔒 Step 0: Running High-Entropy Pre-Commit Secret Scanner..."
-python3 scripts/secret_scanner.py || python scripts/secret_scanner.py
+echo "🔒 Step 0: Running complete non-live release gates..."
+bash scripts/verify_monorepo.sh
 
 # 1. API & Security Bootstrap
 if [ "$SKIP_BOOTSTRAP" = false ]; then
@@ -97,30 +108,15 @@ else
   echo "⏩ Skipping GCP API Bootstrap (--skip-bootstrap)"
 fi
 
-# 2. Secret Manager Provisioning
-if [ "$SKIP_SECRETS" = false ]; then
-  echo ""
-  echo "🔑 Step 2: Provisioning Google Secret Manager ($ENV_UPPER)..."
-  bash scripts/gcp_setup_secrets.sh --env "$ENV" --project-id "$PROJECT_ID"
-else
-  echo "⏩ Skipping Secret Manager Setup (--skip-secrets)"
-fi
-
-# 3. Apply Terraform Infrastructure
+# 2. Apply Terraform Infrastructure. The G0 path uses Vertex AI workload
+# identity and Cloud Tasks OIDC; it does not provision API/HMAC secrets.
 if [ "$SKIP_TERRAFORM" = false ]; then
   if ! command -v terraform >/dev/null 2>&1; then
-    echo ""
-    echo "⚠️ Warning: 'terraform' CLI is not installed or not in PATH."
-    echo "   To install Terraform on Ubuntu/WSL, run:"
-    echo "   sudo apt-get update && sudo apt-get install -y gnupg software-properties-common curl"
-    echo "   curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg"
-    echo "   echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/hashicorp.list"
-    echo "   sudo apt-get update && sudo apt-get install -y terraform"
-    echo ""
-    echo "   Skipping Terraform infrastructure apply step."
+    echo "Error: terraform is required unless --skip-terraform is explicitly supplied." >&2
+    exit 1
   else
     echo ""
-    echo "📦 Step 3: Applying Terraform Infrastructure for '$ENV' ($([ "$ENV" = "dev" ] && echo "\$0/mo Scale-to-Zero" || echo "Pre-warmed HA"))..."
+    echo "📦 Step 2: Applying Terraform Infrastructure for '$ENV'..."
     cd infra/terraform
     terraform init -input=false
     terraform apply \
@@ -128,6 +124,10 @@ if [ "$SKIP_TERRAFORM" = false ]; then
       -var-file="environments/${ENV}.tfvars" \
       -var="project_id=${PROJECT_ID}" \
       -var="region=${REGION}" \
+      -var="release_sha=${RELEASE_SHA}" \
+      -var="planner_model=${PLANNER_MODEL}" \
+      -var="web_image=${WEB_IMAGE}" \
+      -var="worker_image=${WORKER_IMAGE}" \
       -auto-approve \
       -input=false
     cd ../..
@@ -136,61 +136,74 @@ else
   echo "⏩ Skipping Terraform application (--skip-terraform)"
 fi
 
-# 4. Multi-Tier Container Builds & Push
+# 3. Container Builds & Push
 if [ "$SKIP_DOCKER" = false ]; then
   echo ""
-  echo "🐳 Step 4: Building & Pushing Container Images with tag ':${ENV}' in Parallel..."
-  WEB_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/benchpress-artifacts/web:${ENV}"
-  WORKER_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/benchpress-artifacts/sandbox-worker:${ENV}"
+  echo "🐳 Step 3: Building & Pushing immutable release images tagged '${RELEASE_SHA}'..."
 
   echo "  • [1/2] Building Next.js 15 Web Platform: $WEB_IMAGE"
   docker build -t "$WEB_IMAGE" -f apps/web/Dockerfile .
   docker push "$WEB_IMAGE"
 
-  echo "  • [2/2] Building Python 3.12 gVisor Worker: $WORKER_IMAGE"
+  echo "  • [2/2] Building bounded Python 3.12 Worker: $WORKER_IMAGE"
   docker build -t "$WORKER_IMAGE" -f apps/sandbox-worker/Dockerfile .
   docker push "$WORKER_IMAGE"
 
-  if [ "$SKIP_TERRAFORM" = false ]; then
-    echo ""
-    echo "📦 Applying the full Terraform stack after container images are available..."
-    cd infra/terraform
-    terraform apply \
-      -var-file="environments/${ENV}.tfvars" \
-      -var="project_id=${PROJECT_ID}" \
-      -var="region=${REGION}" \
-      -auto-approve \
-      -input=false
-    cd ../..
-  fi
 else
-  echo "⏩ Skipping Docker build/push (--skip-docker)"
+  echo "⏩ Skipping Docker build/push; verifying immutable release images already exist..."
+  gcloud artifacts docker images describe "$WEB_IMAGE" --project "$PROJECT_ID" >/dev/null
+  gcloud artifacts docker images describe "$WORKER_IMAGE" --project "$PROJECT_ID" >/dev/null
 fi
 
-# 5. Automated Post-Deployment Smoke Verification
+if [ "$SKIP_TERRAFORM" = false ]; then
+  echo ""
+  echo "📦 Applying the full Terraform stack after immutable images are available..."
+  cd infra/terraform
+  terraform apply \
+    -var-file="environments/${ENV}.tfvars" \
+    -var="project_id=${PROJECT_ID}" \
+    -var="region=${REGION}" \
+    -var="release_sha=${RELEASE_SHA}" \
+    -var="planner_model=${PLANNER_MODEL}" \
+    -var="web_image=${WEB_IMAGE}" \
+    -var="worker_image=${WORKER_IMAGE}" \
+    -auto-approve \
+    -input=false
+  cd ../..
+fi
+
+# 4. Automated Post-Deployment Smoke Verification
 if [ "$SKIP_SMOKE" = false ]; then
   echo ""
-  echo "🧪 Step 5: Running Automated Live Cloud Smoke Verification..."
+  echo "🧪 Step 4: Running Automated Live Cloud Smoke Verification..."
   bash scripts/gcp_smoke_test.sh --env "$ENV" --project-id "$PROJECT_ID" --region "$REGION"
 else
   echo "⏩ Skipping Smoke Verification (--skip-smoke)"
 fi
 
-# 6. Terminal Summary Dashboard
+# 5. Terminal Summary
 DATASET_NAME="benchpress_${ENV}_analytics"
 if [ "$ENV" = "prod" ]; then
   DATASET_NAME="benchpress_analytics"
 fi
 
-WEB_URL="https://benchpress-web-${ENV}-xyz-${REGION}.a.run.app"
-WORKER_URL="https://benchpress-worker-${ENV}-xyz-${REGION}.a.run.app"
+if [ "$SKIP_TERRAFORM" = false ] && command -v terraform >/dev/null 2>&1; then
+  WEB_URL="$(terraform -chdir=infra/terraform output -raw web_service_uri)"
+  WORKER_URL="$(terraform -chdir=infra/terraform output -raw worker_service_uri)"
+else
+  WEB_URL="not-applied"
+  WORKER_URL="not-applied"
+fi
 
 echo ""
 echo "✨ =================================================================="
-echo "   BENCHPRESS [${ENV_UPPER}] DEPLOYMENT COMPLETE & VERIFIED!"
+echo "   BENCHPRESS [${ENV_UPPER}] DEPLOYMENT APPLIED; VERIFY EVIDENCE BEFORE RELEASE"
 echo "=================================================================="
 echo "   🌐 Web Platform URL:      $WEB_URL"
 echo "   ⚡ Worker Endpoint:       $WORKER_URL"
+echo "   🔒 Release SHA:           $RELEASE_SHA"
+echo "   📦 Web image:             $WEB_IMAGE"
+echo "   📦 Worker image:          $WORKER_IMAGE"
 echo "   📊 BigQuery Analytics:    https://console.cloud.google.com/bigquery?project=${PROJECT_ID}&p=${PROJECT_ID}&d=${DATASET_NAME}&page=dataset"
 echo "   🚦 Cloud Tasks Queue:     ${ENV}-trajectory-queue ($([ "$ENV" = "dev" ] && echo "10/s rate limit" || echo "500/s rate limit"))"
 echo "   🧠 Redis Memorystore:     benchpress-redis-${ENV} ($([ "$ENV" = "dev" ] && echo "1 GB Basic" || echo "5 GB Standard HA"))"

@@ -1,7 +1,7 @@
 # Local Development, Docker Compose Stack & Mock Telemetry Generator
 
 > **Document ID:** `BP-IMP-004`  
-> **Status:** Approved / Production Standard  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design & The Taskmaster • Google Cloud Hackathon (2026)
 
 ---

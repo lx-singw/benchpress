@@ -30,13 +30,21 @@ class SufficiencyEvaluator:
         if candidate_agg.resolved_count == 0:
             return InternalOutcome.STAY_CHEAPEST_FAILED
 
+        if not baseline_agg.evidence_sufficient or not candidate_agg.evidence_sufficient:
+            return InternalOutcome.ABSTAIN_INSUFFICIENT_EVIDENCE
+
+        if not baseline_agg.cpr_defined or not candidate_agg.cpr_defined:
+            return InternalOutcome.ABSTAIN_INSUFFICIENT_EVIDENCE
+
         # 3. Compare CPR
+        assert baseline_agg.cpr_usd is not None and candidate_agg.cpr_usd is not None
         base_cpr = Decimal(baseline_agg.cpr_usd)
         cand_cpr = Decimal(candidate_agg.cpr_usd)
 
         # Higher or equal pass rate and lower cost per resolution
         if candidate_agg.pass_rate >= baseline_agg.pass_rate:
-            if cand_cpr < base_cpr:
+            improvement = (base_cpr - cand_cpr) / base_cpr if base_cpr > 0 else Decimal("0")
+            if cand_cpr < base_cpr and improvement >= Decimal(str(cpr_improvement_threshold)):
                 return InternalOutcome.SWITCH_RECOMMENDED
             elif cand_cpr == base_cpr:
                 return InternalOutcome.ABSTAIN_INSUFFICIENT_EVIDENCE

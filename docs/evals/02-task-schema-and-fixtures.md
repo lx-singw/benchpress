@@ -1,7 +1,7 @@
 # Canonical Task Schema, SWE-Bench Fixtures & Pytest Assertion Harness
 
 > **Document ID:** `BP-EVAL-002`  
-> **Status:** Approved / Production Standard  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Benchmark Scientific Rigor • Google Cloud Hackathon (2026)
 
 ---

@@ -1,7 +1,7 @@
 # Environment Variables, Secrets Management & IAM Permissions Matrix
 
 > **Document ID:** `BP-IMP-005`  
-> **Status:** Approved / Production-Grade Specification  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** The Fortified Enterprise Fleet & The Taskmaster • Google Cloud All Things Agentic Hackathon (2026)  
 > **Target Audience:** Lead Site Reliability Engineers, Enterprise Security Reviewers, Cloud Architects, DevSecOps
 

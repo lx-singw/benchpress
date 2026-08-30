@@ -1,7 +1,7 @@
 # Model Profile Pages, Head-to-Head Comparison & Trajectory Inspector UX Specification
 
 > **Document ID:** `BP-DES-005`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Multimodal UX ($5,000 Target) • Google Cloud Hackathon (2026)
 
 ---

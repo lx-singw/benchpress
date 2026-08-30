@@ -1,7 +1,7 @@
 # FinOps Infrastructure Budget, Unit Economics & Cost Projections
 
 > **Document ID:** `BP-PLAN-004`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** FinOps, The Taskmaster & Venture Viability • Google Cloud Hackathon (2026)
 
 ---

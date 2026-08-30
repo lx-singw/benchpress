@@ -1,7 +1,7 @@
 # OpenTelemetry Semantic Conventions for Autonomous AI Agents
 
 > **Document ID:** `BP-TEL-001`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Observability, FinOps & Architecture • Google Cloud Hackathon (2026)
 
 ---

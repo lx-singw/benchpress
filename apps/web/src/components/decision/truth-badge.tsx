@@ -16,7 +16,7 @@ interface TruthBadgeProps {
 }
 
 export function TruthBadge({
-  truthClass = "BENCHPRESS_MEASURED",
+  truthClass = "DEMO_FIXTURE",
   size = "md",
   className = "",
 }: TruthBadgeProps) {

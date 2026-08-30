@@ -1,7 +1,7 @@
 # Tri-Modal User Experience Specification (Voice, Vision, Canvas)
 
 > **Document ID:** `BP-UX-001`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Multimodal UX ($5,000) • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

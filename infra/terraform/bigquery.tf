@@ -84,3 +84,32 @@ resource "google_bigquery_table" "fsm_turns" {
     { name = "timestamp", type = "TIMESTAMP", mode = "REQUIRED", description = "Turn timestamp" }
   ])
 }
+
+resource "google_bigquery_table" "workflow_events" {
+  dataset_id          = google_bigquery_dataset.analytics.dataset_id
+  table_id            = "workflow_events"
+  deletion_protection = var.environment == "prod" ? true : false
+
+  time_partitioning {
+    type  = "DAY"
+    field = "timestamp"
+  }
+
+  clustering = ["correlation_id", "event_type", "service", "severity"]
+
+  schema = jsonencode([
+    { name = "schema_version", type = "STRING", mode = "REQUIRED" },
+    { name = "event_id", type = "STRING", mode = "REQUIRED" },
+    { name = "correlation_id", type = "STRING", mode = "REQUIRED" },
+    { name = "causation_id", type = "STRING", mode = "NULLABLE" },
+    { name = "object_id", type = "STRING", mode = "REQUIRED" },
+    { name = "event_type", type = "STRING", mode = "REQUIRED" },
+    { name = "transition", type = "STRING", mode = "NULLABLE" },
+    { name = "attempt", type = "INTEGER", mode = "REQUIRED" },
+    { name = "service", type = "STRING", mode = "REQUIRED" },
+    { name = "release_sha", type = "STRING", mode = "REQUIRED" },
+    { name = "severity", type = "STRING", mode = "REQUIRED" },
+    { name = "timestamp", type = "TIMESTAMP", mode = "REQUIRED" },
+    { name = "details", type = "JSON", mode = "NULLABLE" }
+  ])
+}

@@ -73,6 +73,19 @@
       "items": { "type": "string" },
       "minItems": 1
     },
+    "trigger_event_id": { "type": ["string", "null"], "pattern": "^evt_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "fingerprint_id": { "type": ["string", "null"], "pattern": "^fp_[a-f0-9]{16}$" },
+    "plan_id": { "type": ["string", "null"], "pattern": "^plan_[a-f0-9]{16}$" },
+    "baseline_policy_version": { "type": ["string", "null"], "pattern": "^pol_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "candidate_policy_version": { "type": ["string", "null"], "pattern": "^pol_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "selected_task_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "eligible_run_keys": { "type": "array", "items": { "type": "string", "pattern": "^run_[a-f0-9]{16}$" } },
+    "excluded_run_reasons": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } },
+    "baseline_evidence": { "type": "object" },
+    "candidate_evidence": { "type": ["object", "null"] },
+    "approval_boundary_version": { "type": "string", "minLength": 1 },
+    "rollback_performed": { "type": "boolean" },
+    "publication_status": { "const": "PUBLISHED" },
     "truth_class": {
       "type": "string",
       "enum": ["BENCHPRESS_MEASURED", "OFFICIAL_SPECIFICATION", "PROJECTED", "ILLUSTRATIVE", "DEMO_FIXTURE"]

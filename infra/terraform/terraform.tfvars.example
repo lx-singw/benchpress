@@ -6,6 +6,16 @@ project_id                  = "benchpress-production"
 region                      = "us-central1"
 zone                        = "us-central1-a"
 environment                 = "prod"
+runtime_mode                = "production"
+release_sha                 = "0123456789abcdef0123456789abcdef01234567"
+planner_model               = "REPLACE_WITH_ACCOUNT_VERIFIED_GEMINI_3_5_MODEL_ID"
+web_image                   = "us-central1-docker.pkg.dev/benchpress-production/benchpress-artifacts/web:0123456789abcdef0123456789abcdef01234567"
+worker_image                = "us-central1-docker.pkg.dev/benchpress-production/benchpress-artifacts/sandbox-worker:0123456789abcdef0123456789abcdef01234567"
+firestore_collection_prefix = "benchpress"
+# Leave empty until a BENCHPRESS_MEASURED receipt is atomically published.
+routing_decision_experiment_id = ""
+max_matrix_spend_usd         = "0.500000"
+per_run_spend_ceiling_usd    = "0.050000"
 
 # Cloud Run Scaling
 web_min_instances           = 1

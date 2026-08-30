@@ -1,4 +1,7 @@
 {
+  "truth_status": "DEMO_FIXTURE",
+  "source": "synthetic_hard_coded_example",
+  "eligible_for_publication": false,
   "experiment_id": "exp_01J6G7R8Q9ABCDEFGHJKMNPQ20",
   "correlation_id": "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
   "total_transitions": 7,

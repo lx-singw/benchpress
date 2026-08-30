@@ -1,7 +1,7 @@
 # Benchmark Dataset Catalog & 5-Tier Complexity Stratification
 
 > **Document ID:** `BP-EVAL-001`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Benchmark Scientific Rigor • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

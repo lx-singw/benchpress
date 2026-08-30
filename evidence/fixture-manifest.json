@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "truth_status": "DEMO_FIXTURE",
+  "source": "synthetic_hard_coded_examples",
+  "eligible_for_publication": false,
+  "eligible_for_measured_aggregation": false,
+  "audited_at": "2026-08-29T00:00:00Z",
+  "files": [
+    "judged_run_receipt.json",
+    "correlation_trace.json",
+    "cloud_run_revisions.json"
+  ],
+  "limitations": [
+    "Identifiers, revisions, URLs, metrics, decisions, hashes, and timestamps are synthetic.",
+    "The files were not exported from Google Cloud or a provider invocation.",
+    "These files may be used only for schema, UI, and replay-fixture development."
+  ]
+}

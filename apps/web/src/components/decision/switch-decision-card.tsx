@@ -44,15 +44,23 @@ export function SwitchDecisionCard({
     verdictSub = "Candidate configuration rejected due to quality breach or dominated CPR.";
   }
 
-  const baseCpr = baselineAgg ? `$${Number(baselineAgg.cpr_usd).toFixed(6)}` : "$0.010800";
-  const candCpr = candidateAgg ? `$${Number(candidateAgg.cpr_usd).toFixed(6)}` : "$0.005400";
-  const basePass = baselineAgg ? `${(baselineAgg.pass_rate * 100).toFixed(1)}% (${baselineAgg.resolved_count}/${baselineAgg.total_attempts})` : "75.0% (3/4)";
-  const candPass = candidateAgg ? `${(candidateAgg.pass_rate * 100).toFixed(1)}% (${candidateAgg.resolved_count}/${candidateAgg.total_attempts})` : "100.0% (4/4)";
+  const baseCpr = baselineAgg
+    ? baselineAgg.cpr_defined && baselineAgg.cpr_usd !== null
+      ? `$${Number(baselineAgg.cpr_usd).toFixed(6)}`
+      : `Undefined (${baselineAgg.cpr_undefined_reason || "NO_REASON_RECORDED"})`
+    : "Unavailable";
+  const candCpr = candidateAgg
+    ? candidateAgg.cpr_defined && candidateAgg.cpr_usd !== null
+      ? `$${Number(candidateAgg.cpr_usd).toFixed(6)}`
+      : `Undefined (${candidateAgg.cpr_undefined_reason || "NO_REASON_RECORDED"})`
+    : "Unavailable";
+  const basePass = baselineAgg ? `${(baselineAgg.pass_rate * 100).toFixed(1)}% (${baselineAgg.resolved_count}/${baselineAgg.total_attempts})` : "Unavailable";
+  const candPass = candidateAgg ? `${(candidateAgg.pass_rate * 100).toFixed(1)}% (${candidateAgg.resolved_count}/${candidateAgg.total_attempts})` : "Unavailable";
 
   const cprSavings =
-    baselineAgg && candidateAgg && Number(baselineAgg.cpr_usd) > 0
+    baselineAgg && candidateAgg && baselineAgg.cpr_usd !== null && candidateAgg.cpr_usd !== null && Number(baselineAgg.cpr_usd) > 0
       ? (((Number(baselineAgg.cpr_usd) - Number(candidateAgg.cpr_usd)) / Number(baselineAgg.cpr_usd)) * 100).toFixed(1)
-      : "50.0";
+      : null;
 
   return (
     <div className={`relative overflow-hidden rounded-2xl bg-[#0D121F]/90 backdrop-blur-xl border ${statusBorder} p-6 lg:p-8 transition-all`}>
@@ -116,11 +124,11 @@ export function SwitchDecisionCard({
           <div className="space-y-2.5 text-xs font-mono">
             <div className="flex justify-between">
               <span className="text-gray-400">Request Model:</span>
-              <span className="text-gray-200 font-semibold">{baselineConfig?.request_model || "gemini-2.5-pro"}</span>
+              <span className="text-gray-200 font-semibold">{baselineConfig?.request_model ?? "Unavailable"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Thinking Budget:</span>
-              <span className="text-gray-400">{baselineConfig?.thinking_budget_tokens || 0} tokens</span>
+              <span className="text-gray-400">{baselineConfig ? `${baselineConfig.thinking_budget_tokens} tokens` : "Unavailable"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Resolution Rate:</span>
@@ -148,11 +156,11 @@ export function SwitchDecisionCard({
           <div className="space-y-2.5 text-xs font-mono">
             <div className="flex justify-between">
               <span className="text-gray-400">Request Model:</span>
-              <span className="text-emerald-300 font-semibold">{candidateConfig?.request_model || "gemini-2.5-pro"}</span>
+              <span className="text-emerald-300 font-semibold">{candidateConfig?.request_model ?? "Unavailable"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Thinking Budget:</span>
-              <span className="text-cyan-400 font-bold">{candidateConfig?.thinking_budget_tokens || 2048} tokens (+2048)</span>
+              <span className="text-cyan-400 font-bold">{candidateConfig ? `${candidateConfig.thinking_budget_tokens} tokens` : "Unavailable"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Resolution Rate:</span>
@@ -162,9 +170,11 @@ export function SwitchDecisionCard({
               <span className="text-emerald-400 font-semibold">Cost Per Resolution:</span>
               <div className="flex items-center gap-2">
                 <span className="text-emerald-400 font-bold text-sm">{candCpr}</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
-                  -{cprSavings}% CPR
-                </span>
+                {cprSavings !== null && (
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                    -{cprSavings}% CPR
+                  </span>
+                )}
               </div>
             </div>
           </div>

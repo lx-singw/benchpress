@@ -1,7 +1,7 @@
 # Technical Implementation Guide: 2-Service Monorepo Architecture
 
 > **Document ID:** `BP-IMP-001`  
-> **Status:** Approved / Production Standard  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design ($5,000) & The Taskmaster • Google Cloud Hackathon (2026)
 
 ---

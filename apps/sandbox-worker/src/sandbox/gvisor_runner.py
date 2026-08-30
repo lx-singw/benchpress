@@ -6,21 +6,21 @@ import os
 import shutil
 import asyncio
 import logging
+import shlex
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger("benchpress.sandbox.gvisor")
 
 
 class GVisorSandboxRunner:
-    """Manages secure command execution inside gVisor kernel (`runsc`) or isolated subprocess."""
+    """Restricted subprocess runner; runsc detection is informational until OCI wiring exists."""
 
     def __init__(self, runsc_path: Optional[str] = None):
         self.runsc_path = runsc_path or shutil.which("runsc")
-        self.has_gvisor = self.runsc_path is not None
-        if self.has_gvisor:
-            logger.info(f"[GVisor] Sentry kernel available at {self.runsc_path}")
-        else:
-            logger.info("[GVisor] runsc binary not found. Using isolated OS Subprocess sandbox.")
+        self.has_gvisor = False
+        self.isolation_mode = "RESTRICTED_SUBPROCESS"
+        if self.runsc_path:
+            logger.warning("runsc was detected but OCI integration is not implemented; not claiming gVisor isolation")
 
     async def execute(
         self,
@@ -38,8 +38,11 @@ class GVisorSandboxRunner:
             execution_env.update(env)
 
         try:
-            proc = await asyncio.create_subprocess_shell(
-                command,
+            argv = shlex.split(command, posix=True)
+            if not argv:
+                return {"exit_code": 1, "stdout": "", "stderr": "Empty command"}
+            proc = await asyncio.create_subprocess_exec(
+                *argv,
                 cwd=cwd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,

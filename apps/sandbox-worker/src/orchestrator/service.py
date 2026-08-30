@@ -81,6 +81,8 @@ class OrchestratorService:
             correlation_id=correlation_id,
             segment_id=segment_id,
         )
+        if self.planner.last_invocation_record:
+            self.ledger.store_planner_invocation(experiment_id, self.planner.last_invocation_record)
 
         if not proposed_plan_dict:
             rejection_reason = "Planner failed to propose a structured experiment plan."
@@ -184,7 +186,7 @@ class OrchestratorService:
                         repetition_index=rep,
                         harness_version=harness_version,
                         oracle_version=oracle_version,
-                        tool_allowlist=["read_file", "replace_file_content", "run_pytest"],
+                        tool_allowlist=["view_file", "edit_hunk", "run_bash"],
                         path_allowlist=[],
                         max_turns=plan.max_turns_per_run,
                         timeout_seconds=plan.per_run_timeout_seconds,

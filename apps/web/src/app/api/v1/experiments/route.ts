@@ -33,7 +33,10 @@ export async function POST(req: NextRequest) {
     const event = parseResult.data;
     const experimentId = `exp_${event.correlation_id.replace(/^corr_/, "")}`;
 
-    // 2. Persist initial experiment state
+    // 2. Persist the immutable trigger before the experiment references it.
+    await firestoreRepo.saveChangeEvent(event);
+
+    // 3. Persist initial experiment state
     const record: ExperimentRecord = {
       experiment_id: experimentId,
       correlation_id: event.correlation_id,
@@ -44,7 +47,7 @@ export async function POST(req: NextRequest) {
     };
     await firestoreRepo.saveExperiment(record);
 
-    // 3. Dispatch orchestration task to Cloud Tasks
+    // 4. Dispatch orchestration task to Cloud Tasks
     const dispatcher = getOrchestratorDispatcher();
     const dispatchRes = await dispatcher.dispatchOrchestration({
       eventId: event.event_id,

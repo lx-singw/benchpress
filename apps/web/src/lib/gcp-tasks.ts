@@ -120,11 +120,11 @@ let taskQueueInstance: ITaskQueue | null = null;
 export function getTaskQueue(): ITaskQueue {
   if (taskQueueInstance) return taskQueueInstance;
 
-  const useMock = process.env.USE_LOCAL_MOCK === "true";
-  if (useMock) {
+  const mode = process.env.RUNTIME_MODE || "local_mock";
+  if (mode === "local_mock") {
     taskQueueInstance = new MockTaskQueueAdapter();
   } else {
-    taskQueueInstance = new GcpCloudTasksAdapter();
+    throw new Error("The legacy /execute-task trajectory queue is disabled outside local_mock mode");
   }
 
   return taskQueueInstance;

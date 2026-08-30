@@ -1,7 +1,7 @@
 # Cloud Monitoring Dashboards, SLOs & Alerting Policies
 
 > **Document ID:** `BP-TEL-003`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Observability, FinOps & System Architecture • Google Cloud Hackathon (2026)
 
 ---

@@ -4,11 +4,12 @@ Computes mathematically rigorous pass rates, CPR ($), latency, and confidence in
 """
 
 import math
+from collections import Counter
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Dict, Any, Tuple
 from contracts.models import RunResult, Aggregate
 from contracts.states import UncertaintyMethod
-from contracts.hashing import generate_aggregate_id, utc_now_rfc3339
+from contracts.hashing import compute_canonical_hash, generate_aggregate_id
 
 
 def calculate_wilson_score_interval(
@@ -51,7 +52,13 @@ class ConfigurationAggregator:
         """
         eligible = [r for r in results if r.eligible_for_aggregation]
         ineligible_keys = [r.logical_run_key for r in results if not r.eligible_for_aggregation]
-        eligible_keys = [r.logical_run_key for r in eligible]
+        eligible_keys = sorted(r.logical_run_key for r in eligible)
+        ineligible_keys = sorted(ineligible_keys)
+        ineligible_reasons = {
+            r.logical_run_key: r.ineligibility_reason or "UNSPECIFIED_INELIGIBILITY"
+            for r in sorted(results, key=lambda item: item.logical_run_key)
+            if not r.eligible_for_aggregation
+        }
 
         if not eligible:
             raise ValueError(f"No eligible run results to aggregate for config '{configuration_id}'")
@@ -65,15 +72,19 @@ class ConfigurationAggregator:
         # Sum cost of ALL attempts (both passing and failing)
         total_cost_dec = sum(Decimal(r.observed_cost_usd) for r in eligible)
         total_cost_usd = f"{total_cost_dec.quantize(Decimal('0.000001'), rounding=ROUND_HALF_UP):.6f}"
+        failure_counts = dict(sorted(Counter(r.failure_reason.value for r in eligible if not r.resolved).items()))
 
         # Cost Per Resolution (CPR):
         # CPR = Total Cost / Resolved Count
-        # If resolved_count == 0, CPR is set to 0.000000 (with evidence_sufficient=False) to avoid zero-division
         if resolved_count > 0:
             cpr_dec = (total_cost_dec / Decimal(resolved_count)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
             cpr_usd = f"{cpr_dec:.6f}"
+            cpr_defined = True
+            cpr_undefined_reason = None
         else:
-            cpr_usd = "0.000000"
+            cpr_usd = None
+            cpr_defined = False
+            cpr_undefined_reason = "ZERO_VERIFIED_SUCCESSES"
 
         # Latency statistics
         latencies = sorted([r.latency_ms for r in eligible])
@@ -87,7 +98,8 @@ class ConfigurationAggregator:
         quality_floor_breached = pass_rate < quality_floor
         evidence_sufficient = (total_attempts >= 2 and resolved_count > 0 and not quality_floor_breached)
 
-        now_iso = utc_now_rfc3339()
+        # Deterministic aggregate timestamp: the newest included terminal result.
+        now_iso = max(r.created_at for r in eligible)
         aggregate_id = generate_aggregate_id({
             "experiment_id": experiment_id,
             "configuration_id": configuration_id,
@@ -104,12 +116,21 @@ class ConfigurationAggregator:
             aggregation_policy_version=aggregation_policy_version,
             eligible_run_keys=eligible_keys,
             ineligible_run_keys=ineligible_keys,
+            ineligible_run_reasons=ineligible_reasons,
             total_attempts=total_attempts,
             resolved_count=resolved_count,
             failed_count=failed_count,
             pass_rate=pass_rate,
             total_cost_usd=total_cost_usd,
+            prompt_tokens=sum(r.prompt_tokens for r in eligible),
+            completion_tokens=sum(r.completion_tokens for r in eligible),
+            cached_tokens=sum(r.cached_tokens for r in eligible),
+            reasoning_tokens=sum(r.reasoning_tokens for r in eligible),
+            total_tokens=sum(r.total_tokens for r in eligible),
+            failure_counts=failure_counts,
             cpr_usd=cpr_usd,
+            cpr_defined=cpr_defined,
+            cpr_undefined_reason=cpr_undefined_reason,
             mean_latency_ms=mean_latency,
             p95_latency_ms=p95_latency,
             uncertainty_method=UncertaintyMethod.WILSON_SCORE,
@@ -117,5 +138,9 @@ class ConfigurationAggregator:
             pass_rate_upper_bound=upper_b,
             evidence_sufficient=evidence_sufficient,
             quality_floor_breached=quality_floor_breached,
+            quality_floor_pass_rate=quality_floor,
+            source_result_digest=compute_canonical_hash([
+                r.model_dump(mode="json") for r in sorted(eligible, key=lambda item: item.logical_run_key)
+            ]),
             created_at=now_iso,
         )

@@ -8,27 +8,50 @@ interface EvidenceSummaryProps {
 }
 
 export function EvidenceSummary({ baselineAgg, candidateAgg }: EvidenceSummaryProps) {
-  const baseAttempts = baselineAgg?.total_attempts || 4;
-  const baseResolved = baselineAgg?.resolved_count || 3;
-  const baseFailed = baselineAgg?.failed_count || 1;
-  const basePassRate = baselineAgg ? (baselineAgg.pass_rate * 100).toFixed(1) : "75.0";
-  const baseCpr = baselineAgg ? `$${Number(baselineAgg.cpr_usd).toFixed(6)}` : "$0.010800";
-  const baseTotalCost = baselineAgg ? `$${Number(baselineAgg.total_cost_usd).toFixed(6)}` : "$0.032400";
-  const baseMeanLat = baselineAgg ? `${baselineAgg.mean_latency_ms} ms` : "1,850 ms";
-  const baseP95Lat = baselineAgg ? `${baselineAgg.p95_latency_ms} ms` : "2,400 ms";
-  const baseLower = baselineAgg ? (baselineAgg.pass_rate_lower_bound * 100).toFixed(1) : "30.1";
-  const baseUpper = baselineAgg ? (baselineAgg.pass_rate_upper_bound * 100).toFixed(1) : "95.4";
+  if (!baselineAgg || !candidateAgg) {
+    return (
+      <div className="rounded-2xl bg-[#0D121F]/80 border border-amber-500/30 p-6 text-sm text-amber-200">
+        Measured aggregate evidence is unavailable for this decision. No fallback metrics are displayed.
+      </div>
+    );
+  }
 
-  const candAttempts = candidateAgg?.total_attempts || 4;
-  const candResolved = candidateAgg?.resolved_count || 4;
-  const candFailed = candidateAgg?.failed_count || 0;
-  const candPassRate = candidateAgg ? (candidateAgg.pass_rate * 100).toFixed(1) : "100.0";
-  const candCpr = candidateAgg ? `$${Number(candidateAgg.cpr_usd).toFixed(6)}` : "$0.005400";
-  const candTotalCost = candidateAgg ? `$${Number(candidateAgg.total_cost_usd).toFixed(6)}` : "$0.021600";
-  const candMeanLat = candidateAgg ? `${candidateAgg.mean_latency_ms} ms` : "1,620 ms";
-  const candP95Lat = candidateAgg ? `${candidateAgg.p95_latency_ms} ms` : "2,100 ms";
-  const candLower = candidateAgg ? (candidateAgg.pass_rate_lower_bound * 100).toFixed(1) : "51.0";
-  const candUpper = candidateAgg ? (candidateAgg.pass_rate_upper_bound * 100).toFixed(1) : "100.0";
+  const baseAttempts = baselineAgg.total_attempts;
+  const baseResolved = baselineAgg.resolved_count;
+  const baseFailed = baselineAgg.failed_count;
+  const basePassRate = (baselineAgg.pass_rate * 100).toFixed(1);
+  const baseCpr = baselineAgg.cpr_defined && baselineAgg.cpr_usd !== null
+    ? `$${Number(baselineAgg.cpr_usd).toFixed(6)}`
+    : `Undefined (${baselineAgg.cpr_undefined_reason || "NO_REASON_RECORDED"})`;
+  const baseTotalCost = `$${Number(baselineAgg.total_cost_usd).toFixed(6)}`;
+  const baseMeanLat = `${baselineAgg.mean_latency_ms} ms`;
+  const baseP95Lat = `${baselineAgg.p95_latency_ms} ms`;
+  const baseLower = (baselineAgg.pass_rate_lower_bound * 100).toFixed(1);
+  const baseUpper = (baselineAgg.pass_rate_upper_bound * 100).toFixed(1);
+
+  const candAttempts = candidateAgg.total_attempts;
+  const candResolved = candidateAgg.resolved_count;
+  const candFailed = candidateAgg.failed_count;
+  const candPassRate = (candidateAgg.pass_rate * 100).toFixed(1);
+  const candCpr = candidateAgg.cpr_defined && candidateAgg.cpr_usd !== null
+    ? `$${Number(candidateAgg.cpr_usd).toFixed(6)}`
+    : `Undefined (${candidateAgg.cpr_undefined_reason || "NO_REASON_RECORDED"})`;
+  const candTotalCost = `$${Number(candidateAgg.total_cost_usd).toFixed(6)}`;
+  const candMeanLat = `${candidateAgg.mean_latency_ms} ms`;
+  const candP95Lat = `${candidateAgg.p95_latency_ms} ms`;
+  const candLower = (candidateAgg.pass_rate_lower_bound * 100).toFixed(1);
+  const candUpper = (candidateAgg.pass_rate_upper_bound * 100).toFixed(1);
+
+  const passDelta = ((candidateAgg.pass_rate - baselineAgg.pass_rate) * 100).toFixed(1);
+  const costDelta = baselineAgg.cpr_usd !== null && candidateAgg.cpr_usd !== null && Number(baselineAgg.cpr_usd) > 0
+    ? (((Number(candidateAgg.cpr_usd) - Number(baselineAgg.cpr_usd)) / Number(baselineAgg.cpr_usd)) * 100).toFixed(1)
+    : null;
+  const spendDelta = Number(baselineAgg.total_cost_usd) > 0
+    ? (((Number(candidateAgg.total_cost_usd) - Number(baselineAgg.total_cost_usd)) / Number(baselineAgg.total_cost_usd)) * 100).toFixed(1)
+    : null;
+  const latencyDelta = baselineAgg.mean_latency_ms > 0
+    ? (((candidateAgg.mean_latency_ms - baselineAgg.mean_latency_ms) / baselineAgg.mean_latency_ms) * 100).toFixed(1)
+    : null;
 
   return (
     <div className="rounded-2xl bg-[#0D121F]/80 backdrop-blur-xl border border-white/10 p-6 lg:p-8">
@@ -53,10 +76,10 @@ export function EvidenceSummary({ baselineAgg, candidateAgg }: EvidenceSummaryPr
             <tr className="border-b border-white/10 text-gray-400">
               <th className="pb-3 font-semibold uppercase tracking-wider">Metric</th>
               <th className="pb-3 font-semibold uppercase tracking-wider text-gray-300">
-                Baseline (gemini-2.5-pro t=0)
+                Baseline ({baselineAgg.configuration_id})
               </th>
               <th className="pb-3 font-semibold uppercase tracking-wider text-emerald-400">
-                Candidate (gemini-2.5-pro t=2048)
+                Candidate ({candidateAgg.configuration_id})
               </th>
               <th className="pb-3 font-semibold uppercase tracking-wider text-right">Delta / ROI</th>
             </tr>
@@ -78,7 +101,7 @@ export function EvidenceSummary({ baselineAgg, candidateAgg }: EvidenceSummaryPr
                 <span className="text-emerald-500/80">({candResolved}/{candAttempts} tasks)</span>
                 <div className="text-[10px] text-emerald-500/70">95% CI: [{candLower}% – {candUpper}%]</div>
               </td>
-              <td className="py-3.5 text-right font-bold text-emerald-400">+25.0% Pass@1</td>
+              <td className="py-3.5 text-right font-bold text-emerald-400">{Number(passDelta) >= 0 ? "+" : ""}{passDelta} pp</td>
             </tr>
 
             {/* Cost Per Resolution (CPR) */}
@@ -89,7 +112,7 @@ export function EvidenceSummary({ baselineAgg, candidateAgg }: EvidenceSummaryPr
               </td>
               <td className="py-3.5 font-bold text-white">{baseCpr}</td>
               <td className="py-3.5 font-bold text-emerald-400 text-sm">{candCpr}</td>
-              <td className="py-3.5 text-right font-bold text-emerald-400">-50.0% Cost / Fix</td>
+              <td className="py-3.5 text-right font-bold text-emerald-400">{costDelta === null ? "Undefined" : `${costDelta}%`}</td>
             </tr>
 
             {/* Total Cohort Dollar Spend */}
@@ -97,7 +120,7 @@ export function EvidenceSummary({ baselineAgg, candidateAgg }: EvidenceSummaryPr
               <td className="py-3.5 text-gray-400">Total Cohort Spend</td>
               <td className="py-3.5">{baseTotalCost}</td>
               <td className="py-3.5 text-emerald-300">{candTotalCost}</td>
-              <td className="py-3.5 text-right text-emerald-400">-33.3% Spend</td>
+              <td className="py-3.5 text-right text-emerald-400">{spendDelta === null ? "Undefined" : `${spendDelta}%`}</td>
             </tr>
 
             {/* Mean Latency */}
@@ -108,7 +131,7 @@ export function EvidenceSummary({ baselineAgg, candidateAgg }: EvidenceSummaryPr
               </td>
               <td className="py-3.5">{baseMeanLat} / {baseP95Lat}</td>
               <td className="py-3.5 text-gray-200">{candMeanLat} / {candP95Lat}</td>
-              <td className="py-3.5 text-right text-emerald-400">-12.4% Latency</td>
+              <td className="py-3.5 text-right text-emerald-400">{latencyDelta === null ? "Undefined" : `${latencyDelta}%`}</td>
             </tr>
 
             {/* Failed Attempts */}
@@ -118,10 +141,10 @@ export function EvidenceSummary({ baselineAgg, candidateAgg }: EvidenceSummaryPr
                 Failed / Excluded Attempts
               </td>
               <td className="py-3.5 text-rose-300 font-bold">
-                {baseFailed} failure <span className="text-gray-500 font-normal">(TASK-004 AST Timeout)</span>
+                {baseFailed} failed attempts
               </td>
-              <td className="py-3.5 text-emerald-400 font-bold">0 failures (100% clean)</td>
-              <td className="py-3.5 text-right text-emerald-400 font-bold">Zero Regressions</td>
+              <td className="py-3.5 text-emerald-400 font-bold">{candFailed} failed attempts</td>
+              <td className="py-3.5 text-right text-emerald-400 font-bold">{candFailed - baseFailed} net failures</td>
             </tr>
           </tbody>
         </table>

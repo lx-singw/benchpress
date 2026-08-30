@@ -1,7 +1,7 @@
 # Task Suites, Evaluation Sets & Ground Truth Verification Engine
 
 > **Document ID:** `BP-METH-002`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design & Scientific Rigor • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

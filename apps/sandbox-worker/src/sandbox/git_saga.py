@@ -67,16 +67,8 @@ class GitSagaTracker:
                 logger.info(f"[GitSaga] Successfully rolled back worktree to snapshot {tree_hash}")
                 return True
             else:
-                # Fallback to checkout or clean
-                reset_proc = await asyncio.create_subprocess_exec(
-                    "git", "reset", "--hard", "HEAD",
-                    cwd=worktree_dir,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                await reset_proc.communicate()
-                logger.warning(f"[GitSaga] read-tree failed ({stderr.decode()}), fallback reset executed")
-                return True
+                logger.warning(f"[GitSaga] read-tree restore failed: {stderr.decode()}")
+                return False
         except Exception as err:
             logger.error(f"[GitSaga] Rollback exception: {err}")
             return False

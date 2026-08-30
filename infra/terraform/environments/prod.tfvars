@@ -4,6 +4,7 @@
 # ==============================================================================
 
 environment                = "prod"
+runtime_mode               = "production"
 web_min_instances          = 1
 web_max_instances          = 20
 worker_min_instances       = 2

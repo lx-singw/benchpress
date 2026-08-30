@@ -1,7 +1,7 @@
 # WebSocket Real-Time Telemetry & Event Streaming Protocol Specification
 
 > **Document ID:** `BP-API-003`  
-> **Status:** Approved / Production-Grade Specification  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Multimodal UX & Best Architectural Design • Google Cloud All Things Agentic Hackathon (2026)  
 > **Target Audience:** Frontend Engineers, Real-Time Systems Architects, Platform Integrators, API Reviewers
 

@@ -1,7 +1,7 @@
 # FinOps BigQuery SQL Cookbook: 10 Production Analytical Queries
 
 > **Document ID:** `BP-TEL-002`  
-> **Status:** Approved / Production Standard  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Observability & FinOps • Google Cloud Hackathon (2026)
 
 ---

@@ -1,7 +1,7 @@
 # Enterprise Compliance, SOC 2 Type II, GDPR & ISO 27001
 
 > **Document ID:** `BP-GOV-003`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** The Fortified Enterprise Fleet • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

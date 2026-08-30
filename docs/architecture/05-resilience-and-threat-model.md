@@ -1,7 +1,7 @@
 # Resilience Engineering, Threat Model & Chaos Resilience Mesh
 
 > **Document ID:** `BP-ARCH-005`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design ($5,000) • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "google-cloud-bigquery>=3.27.0",
     "google-cloud-firestore>=2.19.0",
+    "google-cloud-tasks>=2.18.0",
     "google-cloud-storage>=2.18.0",
     "google-genai>=0.1.1",
     "redis>=5.2.0",
@@ -33,3 +34,4 @@ target-version = "py312"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "--import-mode=importlib"

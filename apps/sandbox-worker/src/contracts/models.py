@@ -3,7 +3,7 @@ Pydantic V2 Strict Projections of the Sovereign Benchpress JSON Schemas.
 Fail-closed validation with extra="forbid" and cross-language deterministic regexes.
 """
 
-from typing import List, Optional, Literal
+from typing import Dict, List, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
 from .states import (
     ExperimentState,
@@ -172,7 +172,11 @@ class RunResult(StrictBaseModel):
     prompt_tokens: int = Field(..., ge=0)
     completion_tokens: int = Field(..., ge=0)
     cached_tokens: int = Field(..., ge=0)
+    reasoning_tokens: int = Field(0, ge=0)
     total_tokens: int = Field(..., ge=0)
+    requested_model: Optional[str] = None
+    response_model: Optional[str] = None
+    provider_response_ids: List[str] = Field(default_factory=list)
     observed_cost_usd: str = Field(..., pattern=DECIMAL_USD_REGEX)
     price_version: str = Field(..., min_length=1)
     latency_ms: int = Field(..., ge=0)
@@ -197,12 +201,21 @@ class Aggregate(StrictBaseModel):
     aggregation_policy_version: str = Field(..., min_length=1)
     eligible_run_keys: List[str] = Field(..., min_length=1)
     ineligible_run_keys: List[str]
+    ineligible_run_reasons: Dict[str, str] = Field(default_factory=dict)
     total_attempts: int = Field(..., ge=1)
     resolved_count: int = Field(..., ge=0)
     failed_count: int = Field(..., ge=0)
     pass_rate: float = Field(..., ge=0.0, le=1.0)
     total_cost_usd: str = Field(..., pattern=DECIMAL_USD_REGEX)
-    cpr_usd: str = Field(..., pattern=DECIMAL_USD_REGEX)
+    prompt_tokens: int = Field(0, ge=0)
+    completion_tokens: int = Field(0, ge=0)
+    cached_tokens: int = Field(0, ge=0)
+    reasoning_tokens: int = Field(0, ge=0)
+    total_tokens: int = Field(0, ge=0)
+    failure_counts: Dict[str, int] = Field(default_factory=dict)
+    cpr_usd: Optional[str] = Field(None, pattern=DECIMAL_USD_REGEX)
+    cpr_defined: bool = True
+    cpr_undefined_reason: Optional[str] = None
     mean_latency_ms: int = Field(..., ge=0)
     p95_latency_ms: int = Field(..., ge=0)
     uncertainty_method: UncertaintyMethod
@@ -210,6 +223,10 @@ class Aggregate(StrictBaseModel):
     pass_rate_upper_bound: float = Field(..., ge=0.0, le=1.0)
     evidence_sufficient: bool
     quality_floor_breached: bool
+    formula_version: str = "cpr_failure_inclusive_v1"
+    quality_floor_pass_rate: float = Field(0.75, ge=0.0, le=1.0)
+    minimum_attempts: int = Field(2, ge=1)
+    source_result_digest: str = Field("0" * 64, pattern=SHA256_64_REGEX)
     created_at: str = Field(..., pattern=RFC3339_MILLIS_REGEX)
 
 
@@ -267,6 +284,19 @@ class DecisionReceipt(StrictBaseModel):
     why_not_cheapest: str = Field(..., min_length=1)
     what_would_reverse_it: str = Field(..., min_length=1)
     known_limitations: List[str] = Field(..., min_length=1)
+    trigger_event_id: Optional[str] = Field(None, pattern=EVENT_ID_REGEX)
+    fingerprint_id: Optional[str] = Field(None, pattern=FINGERPRINT_ID_REGEX)
+    plan_id: Optional[str] = Field(None, pattern=PLAN_ID_REGEX)
+    baseline_policy_version: Optional[str] = Field(None, pattern=POLICY_VERSION_REGEX)
+    candidate_policy_version: Optional[str] = Field(None, pattern=POLICY_VERSION_REGEX)
+    selected_task_ids: List[str] = Field(default_factory=list)
+    eligible_run_keys: List[str] = Field(default_factory=list)
+    excluded_run_reasons: Dict[str, str] = Field(default_factory=dict)
+    baseline_evidence: Dict[str, object] = Field(default_factory=dict)
+    candidate_evidence: Optional[Dict[str, object]] = None
+    approval_boundary_version: str = "decision_policy_v1"
+    rollback_performed: bool = False
+    publication_status: Literal["PUBLISHED"] = "PUBLISHED"
     truth_class: TruthClass
     evidence_hash: str = Field(..., pattern=SHA256_64_REGEX)
     code_commit_sha: str = Field(..., pattern=SHA256_40_REGEX)

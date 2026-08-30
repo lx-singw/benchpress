@@ -1,7 +1,6 @@
-/**
- * @benchpress/web - Cloud Tasks Dispatcher for Evaluation Orchestrator
- */
+/** Cloud Tasks dispatcher for the judged orchestration path. */
 
+import { createHash } from "crypto";
 import { CloudTasksClient } from "@google-cloud/tasks";
 
 export interface OrchestrateMessage {
@@ -14,108 +13,87 @@ export interface IOrchestratorDispatcher {
   dispatchOrchestration(message: OrchestrateMessage): Promise<{ taskId: string; queueName: string }>;
 }
 
-class GcpOrchestratorDispatcher implements IOrchestratorDispatcher {
-  private client: CloudTasksClient | null = null;
-  private queuePath: string = "";
-  private workerUrl: string;
+function runtimeMode(): string {
+  return process.env.RUNTIME_MODE || "local_mock";
+}
 
-  constructor() {
-    this.workerUrl = (process.env.SANDBOX_WORKER_URL || "http://localhost:8000").replace(/\/$/, "");
-    try {
-      this.client = new CloudTasksClient();
-      const project = process.env.GOOGLE_CLOUD_PROJECT || "benchpress-dev";
-      const location = process.env.GCP_TASKS_LOCATION || "us-central1";
-      const queue = process.env.GCP_TASKS_QUEUE_NAME || "trajectory-execution-queue";
-      this.queuePath = this.client.queuePath(project, location, queue);
-    } catch (err) {
-      console.warn("[GcpOrchestratorDispatcher] Failed to initialize CloudTasksClient:", err);
-      this.client = null;
+function requiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(name + " is required outside local_mock mode");
+  return value;
+}
+
+function orchestrationTaskId(eventId: string): string {
+  const digest = createHash("sha256").update("orchestrate:" + eventId).digest("hex").slice(0, 32);
+  return "orchestrate-" + digest;
+}
+
+class GcpOrchestratorDispatcher implements IOrchestratorDispatcher {
+  private client: CloudTasksClient;
+  private queuePath: string;
+  private workerUrl: string;
+  private audience: string;
+  private invokerServiceAccount: string;
+
+  constructor(client?: CloudTasksClient) {
+    if (runtimeMode() === "local_mock") {
+      throw new Error("GCP dispatcher cannot be constructed in local_mock mode");
     }
+    this.client = client || new CloudTasksClient();
+    const project = requiredEnv("GOOGLE_CLOUD_PROJECT");
+    const location = requiredEnv("GCP_TASKS_LOCATION");
+    const queue = requiredEnv("GCP_TASKS_QUEUE_NAME");
+    this.workerUrl = requiredEnv("SANDBOX_WORKER_URL").replace(/\/$/, "");
+    this.audience = requiredEnv("TASKS_OIDC_AUDIENCE").replace(/\/$/, "");
+    this.invokerServiceAccount = requiredEnv("GCP_TASKS_INVOKER_SERVICE_ACCOUNT");
+    if (!this.workerUrl.startsWith("https://") || !this.audience.startsWith("https://")) {
+      throw new Error("Worker URL and OIDC audience must use HTTPS outside local_mock mode");
+    }
+    this.queuePath = this.client.queuePath(project, location, queue);
   }
 
   async dispatchOrchestration(message: OrchestrateMessage): Promise<{ taskId: string; queueName: string }> {
-    if (!this.client) {
-      const mock = new MockOrchestratorDispatcher();
-      return mock.dispatchOrchestration(message);
-    }
-
     const payload = JSON.stringify({
       event_id: message.eventId,
       correlation_id: message.correlationId,
       segment_id: message.segmentId || "swe_coding_python_interactive",
     });
-
-    const targetUrl = `${this.workerUrl}/orchestrate`;
-    const taskName = `${this.queuePath}/tasks/orch_${message.eventId}`;
-
-    const httpRequest: any = {
-      httpMethod: "POST" as const,
-      url: targetUrl,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Benchpress-Correlation-ID": message.correlationId,
-      },
-      body: Buffer.from(payload).toString("base64"),
-    };
-
-    const invokerServiceAccount = process.env.GCP_TASKS_INVOKER_SERVICE_ACCOUNT;
-    if (invokerServiceAccount) {
-      httpRequest.oidcToken = {
-        serviceAccountEmail: invokerServiceAccount,
-        audience: this.workerUrl,
-      };
-    }
+    const taskName = this.queuePath + "/tasks/" + orchestrationTaskId(message.eventId);
 
     try {
       const [response] = await this.client.createTask({
         parent: this.queuePath,
         task: {
           name: taskName,
-          httpRequest,
+          httpRequest: {
+            httpMethod: "POST" as const,
+            url: this.workerUrl + "/orchestrate",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Benchpress-Correlation-ID": message.correlationId,
+            },
+            body: Buffer.from(payload).toString("base64"),
+            oidcToken: {
+              serviceAccountEmail: this.invokerServiceAccount,
+              audience: this.audience,
+            },
+          },
         },
       });
-
-      return {
-        taskId: response.name || taskName,
-        queueName: this.queuePath,
-      };
-    } catch (err: any) {
-      console.warn("[GcpOrchestratorDispatcher] Cloud Tasks dispatch error, falling back to direct HTTP dispatch:", err.message);
-      const mock = new MockOrchestratorDispatcher();
-      return mock.dispatchOrchestration(message);
+      return { taskId: response.name || taskName, queueName: this.queuePath };
+    } catch (error: any) {
+      if (error?.code === 6 || error?.code === "ALREADY_EXISTS") {
+        return { taskId: taskName, queueName: this.queuePath };
+      }
+      throw error;
     }
   }
 }
 
 class MockOrchestratorDispatcher implements IOrchestratorDispatcher {
-  private workerUrl: string;
-
-  constructor() {
-    this.workerUrl = (process.env.SANDBOX_WORKER_URL || "http://localhost:8000").replace(/\/$/, "");
-  }
-
   async dispatchOrchestration(message: OrchestrateMessage): Promise<{ taskId: string; queueName: string }> {
-    const taskId = `mock-orch-${Date.now()}-${message.eventId}`;
-    const payload = {
-      event_id: message.eventId,
-      correlation_id: message.correlationId,
-      segment_id: message.segmentId || "swe_coding_python_interactive",
-    };
-
-    try {
-      fetch(`${this.workerUrl}/orchestrate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).catch((err) => {
-        // Best-effort local worker notify
-      });
-    } catch {
-      // Best-effort local mock
-    }
-
     return {
-      taskId,
+      taskId: "mock-" + orchestrationTaskId(message.eventId),
       queueName: "local-in-memory-orchestration-queue",
     };
   }
@@ -125,7 +103,10 @@ let dispatcherInstance: IOrchestratorDispatcher | null = null;
 
 export function getOrchestratorDispatcher(): IOrchestratorDispatcher {
   if (dispatcherInstance) return dispatcherInstance;
-  const useMock = process.env.USE_LOCAL_MOCK !== "false";
-  dispatcherInstance = useMock ? new MockOrchestratorDispatcher() : new GcpOrchestratorDispatcher();
+  dispatcherInstance = runtimeMode() === "local_mock"
+    ? new MockOrchestratorDispatcher()
+    : new GcpOrchestratorDispatcher();
   return dispatcherInstance;
 }
+
+export { GcpOrchestratorDispatcher, MockOrchestratorDispatcher, orchestrationTaskId };

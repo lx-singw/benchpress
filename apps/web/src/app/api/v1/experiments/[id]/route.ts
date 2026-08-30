@@ -31,5 +31,7 @@ export async function GET(
     decision_url: experiment.decision_id ? `/decisions/${experiment.experiment_id}` : null,
     created_at: experiment.created_at,
     updated_at: experiment.updated_at || experiment.created_at,
+  }, {
+    headers: { "Cache-Control": "no-store, max-age=0, must-revalidate" },
   });
 }

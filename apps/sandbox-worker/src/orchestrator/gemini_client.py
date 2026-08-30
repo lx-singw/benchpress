@@ -8,6 +8,7 @@ import os
 import logging
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
+from config import settings
 
 logger = logging.getLogger("benchpress.orchestrator.gemini")
 
@@ -19,7 +20,9 @@ class GeminiUsageMetadata:
     total_tokens: int = 0
     latency_ms: int = 0
     finish_reason: str = "STOP"
-    model_id: str = "gemini-2.5-pro"
+    model_id: str = ""
+    response_model: Optional[str] = None
+    response_ids: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -33,21 +36,34 @@ class GeminiCallResult:
 class GeminiOrchestratorClient:
     """Interfaces with Google GenAI SDK to invoke Gemini models with structured tools."""
 
-    def __init__(self, api_key: Optional[str] = None, default_model: str = "gemini-2.5-pro"):
+    def __init__(self, api_key: Optional[str] = None, default_model: Optional[str] = None):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
-        self.default_model = default_model
+        self.default_model = default_model or settings.planner_model
         self.client = None
         self._init_client()
 
     def _init_client(self):
-        if self.api_key:
-            try:
-                from google import genai
+        if settings.use_local_mock and not self.api_key:
+            return
+        try:
+            from google import genai
+
+            if self.api_key:
                 self.client = genai.Client(api_key=self.api_key)
-                logger.info(f"Initialized live Google GenAI Client with model {self.default_model}")
-            except Exception as e:
-                logger.warning(f"Failed to initialize google.genai Client: {e}. Falling back to mock engine.")
+            elif settings.genai_use_vertexai:
+                self.client = genai.Client(
+                    vertexai=True,
+                    project=settings.google_cloud_project,
+                    location=settings.vertex_ai_location,
+                )
+            else:
+                raise RuntimeError("No Google GenAI authentication surface configured")
+            logger.info(f"Initialized live Google GenAI Client with model {self.default_model}")
+        except Exception:
+            if settings.use_local_mock:
                 self.client = None
+                return
+            raise
 
     def is_live(self) -> bool:
         return self.client is not None
@@ -63,7 +79,7 @@ class GeminiOrchestratorClient:
         target_model = model or self.default_model
         start_time = time.perf_counter()
 
-        if not self.client:
+        if not self.client and settings.use_local_mock:
             # Fallback simulator if SDK is unavailable or in mock mode
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             return GeminiCallResult(
@@ -129,6 +145,8 @@ class GeminiOrchestratorClient:
                     latency_ms=latency_ms,
                     finish_reason=finish_reason,
                     model_id=target_model,
+                    response_model=getattr(response, "model_version", None) or target_model,
+                    response_ids=[getattr(response, "response_id", "")] if getattr(response, "response_id", None) else [],
                 ),
                 raw_response=response,
             )

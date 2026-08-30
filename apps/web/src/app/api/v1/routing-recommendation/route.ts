@@ -28,10 +28,43 @@ export async function POST(request: NextRequest) {
     const validated = RoutingRecommendationSchema.parse(rawBody);
 
     // Look up live active policy from Firestore for the segment
+    const mode = process.env.RUNTIME_MODE || "local_mock";
     const activePolicy = await firestoreRepo.getActivePolicy("swe_coding_python_interactive");
-    const decision = await firestoreRepo.getDecision("exp_01J6G7R8Q9ABCDEFGHJKMNPQ20");
+    const decisionExperimentId = mode === "local_mock"
+      ? "exp_01J6G7R8Q9ABCDEFGHJKMNPQ20"
+      : process.env.ROUTING_DECISION_EXPERIMENT_ID;
+    const decision = decisionExperimentId ? await firestoreRepo.getDecision(decisionExperimentId) : null;
 
-    // Compute optimal 2-tier choreography & cost arbitrage
+    if (mode !== "local_mock") {
+      if (!activePolicy || !decision || decision.truth_class !== "BENCHPRESS_MEASURED") {
+        return NextResponse.json(
+          {
+            status: "unavailable",
+            code: "NO_PUBLISHED_MEASURED_POLICY",
+            message: "A verified published measured decision is required before serving recommendations.",
+          },
+          { status: 503, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+      return NextResponse.json({
+        status: "success",
+        timestamp: new Date().toISOString(),
+        truth_class: "BENCHPRESS_MEASURED",
+        active_policy: {
+          policy_version: activePolicy.policy_version,
+          configuration_id: activePolicy.configuration_id,
+          is_active: activePolicy.is_active,
+        },
+        decision_receipt_id: decision.receipt_id,
+        recommendation: {
+          configuration_id: activePolicy.configuration_id,
+          task_segment_id: activePolicy.task_segment_id,
+          rationale: decision.why_decision,
+        },
+      }, { headers: { "Cache-Control": "no-store" } });
+    }
+
+    // Local-only illustrative router. It never participates in measured policy.
     const recommendation = ParetoRouter.computeOptimalRoute(
       validated.task_type,
       validated.codebase_language,
@@ -57,7 +90,7 @@ export async function POST(request: NextRequest) {
       decision_receipt_id: decision?.receipt_id || null,
       recommendation: {
         ...recommendation,
-        truth_class: "BENCHPRESS_MEASURED",
+        truth_class: "DEMO_FIXTURE",
         query: {
           task_type: validated.task_type,
           codebase_language: validated.codebase_language,

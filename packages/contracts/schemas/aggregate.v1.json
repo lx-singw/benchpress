@@ -45,12 +45,21 @@
       "type": "array",
       "items": { "type": "string", "pattern": "^run_[a-f0-9]{16}$" }
     },
+    "ineligible_run_reasons": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } },
     "total_attempts": { "type": "integer", "minimum": 1 },
     "resolved_count": { "type": "integer", "minimum": 0 },
     "failed_count": { "type": "integer", "minimum": 0 },
     "pass_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
     "total_cost_usd": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{6}$" },
-    "cpr_usd": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{6}$" },
+    "prompt_tokens": { "type": "integer", "minimum": 0 },
+    "completion_tokens": { "type": "integer", "minimum": 0 },
+    "cached_tokens": { "type": "integer", "minimum": 0 },
+    "reasoning_tokens": { "type": "integer", "minimum": 0 },
+    "total_tokens": { "type": "integer", "minimum": 0 },
+    "failure_counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+    "cpr_usd": { "type": ["string", "null"], "pattern": "^[0-9]+\\.[0-9]{6}$" },
+    "cpr_defined": { "type": "boolean" },
+    "cpr_undefined_reason": { "type": ["string", "null"], "minLength": 1 },
     "mean_latency_ms": { "type": "integer", "minimum": 0 },
     "p95_latency_ms": { "type": "integer", "minimum": 0 },
     "uncertainty_method": {
@@ -61,6 +70,10 @@
     "pass_rate_upper_bound": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
     "evidence_sufficient": { "type": "boolean" },
     "quality_floor_breached": { "type": "boolean" },
+    "formula_version": { "type": "string", "minLength": 1 },
+    "quality_floor_pass_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "minimum_attempts": { "type": "integer", "minimum": 1 },
+    "source_result_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "created_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$" }
   }
 }

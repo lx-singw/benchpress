@@ -1,7 +1,7 @@
 # Scientific Benchmark Methodology, Mathematical Formulations & Metrics
 
 > **Document ID:** `BP-METH-001`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design & Scientific Rigor • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

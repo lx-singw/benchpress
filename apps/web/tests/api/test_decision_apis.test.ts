@@ -7,6 +7,8 @@ import { GET as handleDecisionGet } from "../../src/app/api/v1/decisions/[id]/ro
 import { GET as handleReceiptGet } from "../../src/app/api/v1/receipts/[id]/route";
 import { GET as handleReplayGet } from "../../src/app/api/v1/replays/[id]/route";
 import { DecisionReceiptSchema, ReplayEventSchema } from "@benchpress/contracts";
+import { generateReceiptId, TruthClass } from "@benchpress/contracts";
+import { FirestoreMeasuredRepository } from "../../src/lib/server/firestore-repo";
 
 test("Decision API Endpoints & Contract Verification", async (t) => {
   await t.test("GET /api/v1/decisions/[id] returns valid decision and aggregates", async () => {
@@ -17,7 +19,7 @@ test("Decision API Endpoints & Contract Verification", async (t) => {
     const data = await res.json();
 
     assert.equal(data.public_decision, "SWITCH");
-    assert.equal(data.truth_class, "BENCHPRESS_MEASURED");
+    assert.equal(data.truth_class, "DEMO_FIXTURE");
     assert.ok(data.evidence_hash);
     assert.ok(data.baseline_configuration);
     assert.ok(data.candidate_configuration);
@@ -113,4 +115,55 @@ test("Decision API Endpoints & Contract Verification", async (t) => {
     const res = await handleExperimentPost(req);
     assert.equal(res.status, 400);
   });
+});
+
+test("Measured read model rejects unpublished and invalid-digest receipts", async () => {
+  const localReq = new NextRequest("http://localhost:3000/api/v1/receipts/rcpt_0123456789abcdef");
+  const localRes = await handleReceiptGet(localReq, { params: Promise.resolve({ id: "rcpt_0123456789abcdef" }) });
+  const fixture = await localRes.json();
+  const measuredBody = {
+    ...fixture,
+    receipt_id: undefined,
+    truth_class: TruthClass.BENCHPRESS_MEASURED,
+    code_commit_sha: "1".repeat(40),
+  };
+  delete measuredBody.receipt_id;
+  const receipt = { ...measuredBody, receipt_id: generateReceiptId(measuredBody) };
+  const experimentId = receipt.experiment_id;
+
+  const documents = new Map<string, unknown>([
+    [`benchpress_published_decisions/${experimentId}`, {
+      experiment_id: experimentId,
+      receipt_id: receipt.receipt_id,
+      publication_status: "PUBLISHED",
+    }],
+    [`benchpress_decision_receipts/${receipt.receipt_id}`, receipt],
+  ]);
+  const fakeClient = {
+    collection(name: string) {
+      return {
+        doc(id: string) {
+          return {
+            async get() {
+              const data = documents.get(`${name}/${id}`);
+              return { exists: data !== undefined, data: () => data, get: (key: string) => (data as any)?.[key] };
+            },
+          };
+        },
+      };
+    },
+  };
+  const repo = new FirestoreMeasuredRepository(fakeClient as any);
+  assert.equal((await repo.getDecision(experimentId))?.receipt_id, receipt.receipt_id);
+
+  documents.set(`benchpress_decision_receipts/${receipt.receipt_id}`, { ...receipt, why_decision: "tampered" });
+  assert.equal(await repo.getDecision(experimentId), null);
+
+  documents.set(`benchpress_decision_receipts/${receipt.receipt_id}`, receipt);
+  documents.set(`benchpress_published_decisions/${experimentId}`, {
+    experiment_id: experimentId,
+    receipt_id: receipt.receipt_id,
+    publication_status: "DRAFT",
+  });
+  assert.equal(await repo.getDecision(experimentId), null);
 });

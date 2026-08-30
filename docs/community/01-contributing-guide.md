@@ -1,7 +1,7 @@
 # Open-Source Contributing Guide & Development Standards
 
 > **Document ID:** `BP-COM-001`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Open-Source Governance & Ecosystem • Google Cloud Hackathon (2026)
 
 ---

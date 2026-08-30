@@ -1,7 +1,7 @@
 # Enterprise Security, Container Isolation & gVisor Sandboxing
 
 > **Document ID:** `BP-GOV-001`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** The Fortified Enterprise Fleet • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

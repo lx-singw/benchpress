@@ -114,8 +114,8 @@ export default function TrajectoryInspectorPage({ params }: PageProps) {
             Back to Models
           </Link>
 
-          <Badge variant="emerald" size="sm" dot>
-            Verified Execution Trace (PASS)
+          <Badge variant="amber" size="sm" dot>
+            Demo Fixture Trace (Illustrative)
           </Badge>
         </div>
 

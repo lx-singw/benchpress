@@ -1,7 +1,7 @@
 # RFC Protocol: Submitting Community & Enterprise Benchmark Suites
 
 > **Document ID:** `BP-COM-002`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Open-Source Governance & Ecosystem • Google Cloud Hackathon (2026)
 
 ---

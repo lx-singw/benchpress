@@ -1,7 +1,7 @@
 # Prompt Injection Defense, Safety Guardrails & Google SAIF Alignment
 
 > **Document ID:** `BP-GOV-004`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** The Fortified Enterprise Fleet • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

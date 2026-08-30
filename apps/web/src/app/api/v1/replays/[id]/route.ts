@@ -17,5 +17,7 @@ export async function GET(
     experiment_id: id,
     events_count: events.length,
     events,
+  }, {
+    headers: { "Cache-Control": "no-store, max-age=0, must-revalidate" },
   });
 }

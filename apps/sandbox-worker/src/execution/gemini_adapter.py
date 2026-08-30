@@ -8,6 +8,7 @@ import time
 import logging
 from typing import Dict, Any, List, Optional
 from .provider_adapter import BaseProviderAdapter, ProviderTurnResult, ProviderUsage
+from config import settings
 
 logger = logging.getLogger("benchpress.execution.gemini")
 
@@ -62,14 +63,28 @@ class GeminiProviderAdapter(BaseProviderAdapter):
         self._init_client()
 
     def _init_client(self):
-        if self.api_key:
-            try:
-                from google import genai
+        if settings.use_local_mock and not self.api_key:
+            return
+        try:
+            from google import genai
+
+            if self.api_key:
                 self.client = genai.Client(api_key=self.api_key)
-                logger.info("Initialized live Google GenAI Client for execution")
-            except Exception as e:
-                logger.warning(f"Failed to initialize google.genai: {e}. Using mock runner.")
+            elif settings.genai_use_vertexai:
+                self.client = genai.Client(
+                    vertexai=True,
+                    project=settings.google_cloud_project,
+                    location=settings.vertex_ai_location,
+                )
+            else:
+                raise RuntimeError("No Google GenAI authentication surface configured")
+            logger.info("Initialized live Google GenAI Client for execution")
+        except Exception:
+            if settings.use_local_mock:
+                logger.warning("Google GenAI client unavailable; retaining explicit local fixture runner")
                 self.client = None
+                return
+            raise
 
     def execute_turn(
         self,
@@ -78,10 +93,12 @@ class GeminiProviderAdapter(BaseProviderAdapter):
         tools: Optional[List[Dict[str, Any]]] = None,
         config: Optional[Dict[str, Any]] = None,
     ) -> ProviderTurnResult:
-        model = config.get("request_model", "gemini-2.5-pro") if config else "gemini-2.5-pro"
+        if not config or not config.get("request_model"):
+            raise ValueError("Exact native configuration with request_model is required")
+        model = str(config["request_model"])
         start_time = time.perf_counter()
 
-        if not self.client:
+        if not self.client and settings.use_local_mock:
             # Deterministic simulation runner for offline tests
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             return self._mock_turn_response(contents, model, latency_ms)
@@ -89,13 +106,18 @@ class GeminiProviderAdapter(BaseProviderAdapter):
         try:
             from google.genai import types
 
-            gemini_tools = tools or CODING_TOOLS_DECLARATIONS
+            gemini_tools = CODING_TOOLS_DECLARATIONS if tools is None else tools
             temp = float(config.get("temperature", 0.0)) if config else 0.0
-            thinking_budget = int(config.get("thinking_budget_tokens", 0)) if config else 0
+            thinking_budget = int(config["thinking_budget_tokens"])
+            max_output_tokens = int(config["max_output_tokens"])
+            top_p = float(config["top_p"])
 
             gen_config = types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=temp,
+                top_p=top_p,
+                max_output_tokens=max_output_tokens,
+                thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
                 tools=gemini_tools,
             )
 
@@ -122,6 +144,10 @@ class GeminiProviderAdapter(BaseProviderAdapter):
                         "args": dict(fc.args) if hasattr(fc, "args") else {},
                     })
 
+            finish_reason = "STOP"
+            if getattr(response, "candidates", None):
+                finish_reason = str(response.candidates[0].finish_reason)
+
             return ProviderTurnResult(
                 text=response.text if hasattr(response, "text") else None,
                 tool_calls=tool_calls,
@@ -133,7 +159,9 @@ class GeminiProviderAdapter(BaseProviderAdapter):
                     total_tokens=tot_tokens,
                     latency_ms=latency_ms,
                 ),
-                finish_reason="STOP",
+                finish_reason=finish_reason,
+                response_model=getattr(response, "model_version", None) or model,
+                response_id=getattr(response, "response_id", None),
             )
 
         except Exception as e:
@@ -172,4 +200,6 @@ class GeminiProviderAdapter(BaseProviderAdapter):
                 latency_ms=max(latency_ms, 120),
             ),
             finish_reason="STOP",
+            response_model=model,
+            response_id=None,
         )

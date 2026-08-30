@@ -1,7 +1,7 @@
 # Official Foundation Model Vendor Verification Protocol
 
 > **Document ID:** `BP-COM-003`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Open-Source Governance & Ecosystem • Google Cloud Hackathon (2026)
 
 ---

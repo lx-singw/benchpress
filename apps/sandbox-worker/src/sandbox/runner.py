@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import asyncio
 import logging
+import shlex
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger("benchpress.sandbox.runner")
@@ -17,11 +18,10 @@ class SandboxRunner:
 
     def __init__(self, runsc_path: Optional[str] = None):
         self.runsc_path = runsc_path or shutil.which("runsc")
-        self.is_gvisor_available = self.runsc_path is not None
-        if self.is_gvisor_available:
-            logger.info(f"gVisor runtime detected at {self.runsc_path}")
-        else:
-            logger.info("gVisor runtime not detected on PATH. Using isolated Subprocess Sandbox Runner.")
+        self.is_gvisor_available = False
+        self.isolation_mode = "RESTRICTED_SUBPROCESS"
+        if self.runsc_path:
+            logger.warning("runsc detected without OCI wiring; using restricted subprocess mode")
 
     async def prepare_workspace(self, task_id: str) -> str:
         """Create an isolated workspace directory with git initialization."""
@@ -71,8 +71,11 @@ class SandboxRunner:
             return {"exit_code": 0, "output": "Mock command execution success (no cwd)"}
 
         try:
-            proc = await asyncio.create_subprocess_shell(
-                command,
+            argv = shlex.split(command, posix=True)
+            if not argv:
+                return {"exit_code": 1, "output": "Empty command"}
+            proc = await asyncio.create_subprocess_exec(
+                *argv,
                 cwd=cwd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,

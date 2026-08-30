@@ -1,0 +1,39 @@
+name: release-gates
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: pnpm install --frozen-lockfile
+      - run: python -m pip install -e apps/sandbox-worker jsonschema pyyaml
+      - run: terraform -chdir=infra/terraform init -backend=false -input=false
+      - run: mkdir -p artifacts/tests
+      - run: bash scripts/verify_monorepo.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-gate-reports-${{ github.sha }}
+          path: artifacts/

@@ -1,4 +1,7 @@
 {
+  "truth_status": "DEMO_FIXTURE",
+  "source": "synthetic_hard_coded_example",
+  "eligible_for_publication": false,
   "project_id": "benchpress-production",
   "region": "us-central1",
   "git_commit_sha": "fb0a13b",

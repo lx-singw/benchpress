@@ -84,6 +84,7 @@ def validate_demo_manifest(manifest_path: Path) -> dict:
         return {"manifest_hash": manifest_hash, "valid": True}
 
     assert data.get("schema_version") == "1.0.0"
+    assert data.get("truth_class") == "DEMO_FIXTURE", "Demo manifest must never be classified as measured"
     assert "replay_event" in data
     assert "baseline_policy" in data
     assert len(data.get("candidate_configurations", [])) >= 2

@@ -91,7 +91,9 @@ def test_zero_division_resilience():
     )
 
     assert agg.resolved_count == 0
-    assert agg.cpr_usd == "0.000000"
+    assert agg.cpr_usd is None
+    assert agg.cpr_defined is False
+    assert agg.cpr_undefined_reason == "ZERO_VERIFIED_SUCCESSES"
     assert agg.evidence_sufficient is False
 
 

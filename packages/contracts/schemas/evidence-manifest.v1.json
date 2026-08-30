@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://benchpress.ai/schemas/evidence-manifest.v1.json",
+  "title": "Benchpress measured evidence bundle manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "truth_class",
+    "correlation_id",
+    "environment",
+    "exported_at",
+    "git",
+    "firestore",
+    "cloud_tasks",
+    "cloud_run",
+    "logs",
+    "provider",
+    "public_api",
+    "tests"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "truth_class": { "const": "BENCHPRESS_MEASURED" },
+    "correlation_id": { "type": "string", "pattern": "^corr_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "environment": { "enum": ["development", "rehearsal", "production"] },
+    "exported_at": { "type": "string", "format": "date-time" },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit_sha", "clean"],
+      "properties": {
+        "commit_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "clean": { "const": true }
+      }
+    },
+    "firestore": { "$ref": "#/definitions/fileGroup" },
+    "cloud_tasks": { "$ref": "#/definitions/fileGroup" },
+    "cloud_run": { "$ref": "#/definitions/fileGroup" },
+    "logs": { "$ref": "#/definitions/fileGroup" },
+    "provider": { "$ref": "#/definitions/fileGroup" },
+    "public_api": { "$ref": "#/definitions/fileGroup" },
+    "tests": { "$ref": "#/definitions/fileGroup" }
+  },
+  "definitions": {
+    "fileGroup": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+    }
+  }
+}

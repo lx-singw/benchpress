@@ -1,7 +1,7 @@
 # Tri-Modal Interaction Protocol, WebRTC AudioWorklet & WebSocket DOM Sync
 
 > **Document ID:** `BP-UX-004`  
-> **Status:** Approved / Production Standard  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Multimodal UX ($5,000) • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

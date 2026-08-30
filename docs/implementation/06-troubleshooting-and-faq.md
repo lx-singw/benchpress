@@ -1,7 +1,7 @@
 # Troubleshooting Runbook, Error Resolution & Judge Evaluation FAQ
 
 > **Document ID:** `BP-IMP-006`  
-> **Status:** Approved / Production-Grade Specification  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** The Taskmaster & Best Architectural Design • Google Cloud All Things Agentic Hackathon (2026)  
 > **Target Audience:** Site Reliability Engineers, Production Operations, Hackathon Judges, Enterprise Evaluators
 

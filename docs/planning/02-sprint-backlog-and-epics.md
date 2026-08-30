@@ -1,7 +1,7 @@
 # Sprint Backlog, Epics & Gherkin Acceptance Criteria
 
 > **Document ID:** `BP-PLAN-002`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Venture Viability & Project Management • Google Cloud Hackathon (2026)
 
 ---

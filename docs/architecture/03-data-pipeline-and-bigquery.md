@@ -1,7 +1,7 @@
 # Data Pipeline, Telemetry Ingestion & BigQuery Analytics
 
 > **Document ID:** `BP-ARCH-003`  
-> **Status:** Approved / Production  
+> **Status:** Historical target-state design — not deployed or verified
 > **Target Track:** Best Architectural Design ($5,000) • Google Cloud All Things Agentic Hackathon (2026)
 
 ---

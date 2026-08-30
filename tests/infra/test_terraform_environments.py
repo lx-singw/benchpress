@@ -87,8 +87,12 @@ def test_cloud_run_environment_isolation_and_sizing():
     assert 'var.environment == "prod" ? "4" : "2"' in cr_content
     assert 'var.environment == "prod" ? "8Gi" : "4Gi"' in cr_content
 
-    # Check BigQuery dataset injection
-    assert 'var.environment == "prod" ? "benchpress_analytics" : "benchpress_dev_analytics"' in cr_content
+    # Cloud Run consumes the dataset provisioned by the canonical Terraform root.
+    assert "google_bigquery_dataset.analytics.dataset_id" in cr_content
+    assert "service_account = google_service_account.web_runtime.email" in cr_content
+    assert "service_account       = google_service_account.worker_runtime.email" in cr_content
+    assert "image = var.web_image" in cr_content
+    assert "image = var.worker_image" in cr_content
 
 
 def test_bigquery_dataset_isolation():
@@ -96,7 +100,7 @@ def test_bigquery_dataset_isolation():
     bq_content = (TERRAFORM_DIR / "bigquery.tf").read_text(encoding="utf-8")
 
     assert 'var.environment == "prod" ? "benchpress_analytics" : "benchpress_dev_analytics"' in bq_content
-    assert 'dataset_id                  = local.dataset_id' in bq_content
+    assert re.search(r"dataset_id\s*=\s*local\.dataset_id", bq_content)
     assert 'table_id            = "trajectories"' in bq_content
     assert 'table_id            = "fsm_turns"' in bq_content
     assert 'clustering = ["model_id", "task_suite", "status"]' in bq_content
@@ -108,9 +112,11 @@ def test_deploy_script_env_flag_support():
 
     assert "--env" in deploy_script
     assert "environments/${ENV}.tfvars" in deploy_script
-    assert "web:${ENV}" in deploy_script
-    assert "sandbox-worker:${ENV}" in deploy_script
-    assert "secret_scanner.py" in deploy_script
+    assert "web:${RELEASE_SHA}" in deploy_script
+    assert "sandbox-worker:${RELEASE_SHA}" in deploy_script
+    assert "git diff --quiet" in deploy_script
+    assert "terraform -chdir=infra/terraform output -raw web_service_uri" in deploy_script
+    assert "verify_monorepo.sh" in deploy_script
 
 
 def test_package_json_cloud_scripts():

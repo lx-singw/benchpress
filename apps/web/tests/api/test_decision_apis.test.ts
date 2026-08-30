@@ -19,6 +19,7 @@ test("Decision API Endpoints & Contract Verification", async (t) => {
     const data = await res.json();
 
     assert.equal(data.public_decision, "SWITCH");
+    assert.equal(data.publication_status, "PUBLISHED");
     assert.equal(data.truth_class, "DEMO_FIXTURE");
     assert.ok(data.evidence_hash);
     assert.ok(data.baseline_configuration);

@@ -45,6 +45,7 @@ export async function GET(
     why_not_cheapest: receipt.why_not_cheapest,
     what_would_reverse_it: receipt.what_would_reverse_it,
     known_limitations: receipt.known_limitations,
+    publication_status: receipt.publication_status,
     truth_class: receipt.truth_class,
     evidence_hash: receipt.evidence_hash,
     code_commit_sha: receipt.code_commit_sha,

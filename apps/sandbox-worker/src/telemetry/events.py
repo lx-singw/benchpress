@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from typing import Any, Dict, Literal, Optional
@@ -103,7 +104,21 @@ class WorkflowEventEmitter:
                     from google.cloud import bigquery
                     self.client = bigquery.Client(project=settings.google_cloud_project)
                 table = f"{settings.google_cloud_project}.{settings.bigquery_dataset}.workflow_events"
-                errors = self.client.insert_rows_json(table, [payload], row_ids=[event_id])
+                bigquery_payload = {
+                    **payload,
+                    # BigQuery's insertAll representation for a native JSON
+                    # column is a serialized JSON value, not a nested record.
+                    "details": json.dumps(
+                        payload["details"],
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                }
+                errors = self.client.insert_rows_json(
+                    table,
+                    [bigquery_payload],
+                    row_ids=[event_id],
+                )
                 if errors:
                     logger.error("BigQuery workflow event insert failed: %s", errors)
             except Exception as exc:

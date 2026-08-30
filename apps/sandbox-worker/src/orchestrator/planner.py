@@ -46,6 +46,7 @@ class GeminiEvaluationPlanner:
             correlation_id,
             segment_id,
             settings.task_fingerprint_id,
+            settings.planner_model,
         )
         
         # If running in live mode with valid client
@@ -64,7 +65,7 @@ class GeminiEvaluationPlanner:
     ) -> Tuple[Dict[str, Any], GeminiUsageMetadata]:
         """Authentic multi-turn tool calling simulation for offline tests and local mock mode."""
         # 1. get_change_event
-        change_event = self.tool_registry.get_change_event(event_id)
+        self.tool_registry.get_change_event(event_id)
         # 2. get_current_baseline
         baseline_policy = self.tool_registry.get_current_baseline(segment_id)
         # 3. list_supported_configurations

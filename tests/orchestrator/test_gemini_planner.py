@@ -2,12 +2,10 @@
 Gemini Evaluation Planner & Orchestration Workflow Tests (IMP-02).
 """
 
-import os
 from types import SimpleNamespace
 import pytest
 from orchestrator.tools import OrchestratorToolRegistry
 from orchestrator.planner import GeminiEvaluationPlanner
-from orchestrator.plan_policy import PlanPolicyValidator
 from orchestrator.service import OrchestratorService
 from orchestrator.gemini_client import (
     GeminiCallResult,
@@ -67,6 +65,20 @@ def test_planner_multi_turn_simulation():
     validated_plan = ExperimentPlan.model_validate(plan_dict)
     assert validated_plan.schema_version == "1.0.0"
     assert usage.total_tokens > 0
+
+
+def test_planner_prompt_pins_exact_configured_model():
+    from orchestrator.prompts import format_planner_user_prompt
+
+    prompt = format_planner_user_prompt(
+        "evt_01J6G7R8Q9ABCDEFGHJKMNPQ01",
+        "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+        "swe_coding_python_interactive",
+        "fp_eeff17a2a24993a9",
+        "gemini-3.7-flash",
+    )
+
+    assert "Required planner_model field: gemini-3.7-flash" in prompt
 
 
 def test_gemini_tool_declarations_are_wrapped_for_sdk():

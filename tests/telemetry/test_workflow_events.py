@@ -1,3 +1,6 @@
+import json
+
+from config import RuntimeMode, settings
 from telemetry.events import WorkflowEventEmitter
 
 
@@ -30,3 +33,28 @@ def test_sensitive_event_details_are_rejected():
         assert "Sensitive telemetry" in str(exc)
     else:
         raise AssertionError("Sensitive telemetry was accepted")
+
+
+def test_bigquery_json_details_are_serialized(monkeypatch):
+    class RecordingBigQueryClient:
+        def __init__(self):
+            self.rows = []
+
+        def insert_rows_json(self, table, rows, row_ids):
+            self.rows.extend(rows)
+            return []
+
+    client = RecordingBigQueryClient()
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.DEVELOPMENT)
+    emitter = WorkflowEventEmitter(bigquery_client=client)
+
+    emitted = emitter.emit(
+        correlation_id="corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+        object_id="run_0123456789abcdef",
+        event_type="RUN_COMPLETED",
+        service="sandbox-worker",
+        details={"total_tokens": 42},
+    )
+
+    assert emitted.details == {"total_tokens": 42}
+    assert json.loads(client.rows[0]["details"]) == {"total_tokens": 42}

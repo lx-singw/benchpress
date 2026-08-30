@@ -23,6 +23,7 @@ def format_planner_user_prompt(
     correlation_id: str,
     segment_id: str,
     fingerprint_id: str = "fp_eeff17a2a24993a9",
+    planner_model: str = "gemini-3.7-flash",
 ) -> str:
     return (
         f"A new ChangeEvent has been detected.\n"
@@ -30,6 +31,7 @@ def format_planner_user_prompt(
         f"- Correlation ID: {correlation_id}\n"
         f"- Target Task Segment: {segment_id}\n"
         f"- Frozen Task Fingerprint ID: {fingerprint_id}\n\n"
+        f"- Required planner_model field: {planner_model}\n\n"
         f"Please inspect the event, retrieve the baseline configuration, explore supported candidate models, "
         f"analyze the task fingerprint, and submit an approved ExperimentPlan via propose_experiment."
     )

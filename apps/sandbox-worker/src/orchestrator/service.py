@@ -11,7 +11,7 @@ from .plan_policy import PlanPolicyValidator, PlanApprovalResult
 from .tools import OrchestratorToolRegistry
 from contracts.models import ChangeEvent, ExperimentPlan, RunManifest
 from contracts.states import ExperimentState
-from contracts.hashing import generate_logical_run_key, utc_now_rfc3339
+from contracts.hashing import compute_canonical_hash, generate_logical_run_key, utc_now_rfc3339
 from ledger.firestore import get_ledger
 from task_queue.cloud_tasks import CloudTasksDispatcher
 
@@ -48,20 +48,44 @@ class OrchestratorService:
         experiment_id = f"exp_{correlation_id.replace('corr_', '')}"
         logger.info(f"[Orchestrator] Starting orchestration for experiment '{experiment_id}' (event: {event_id})")
 
-        # 1. Ensure experiment record is initialized in RECEIVED
-        self.ledger.store_experiment(experiment_id, {
-            "event_id": event_id,
-            "correlation_id": correlation_id,
-            "state": ExperimentState.RECEIVED.value,
-        })
+        # 1. Initialize once, then resume safely from durable checkpoints on retry.
+        experiment = self.ledger.get_experiment(experiment_id)
+        if experiment is None:
+            self.ledger.store_experiment(experiment_id, {
+                "event_id": event_id,
+                "correlation_id": correlation_id,
+                "state": ExperimentState.RECEIVED.value,
+            })
+            experiment = self.ledger.get_experiment(experiment_id)
+        elif (
+            experiment.get("event_id") != event_id
+            or experiment.get("correlation_id") != correlation_id
+        ):
+            raise ValueError(
+                f"Experiment identity mismatch for {experiment_id}: "
+                "event_id and correlation_id must be immutable"
+            )
 
-        # 2. Transition state: RECEIVED -> PLANNING
-        self.ledger.update_experiment_state(
-            experiment_id=experiment_id,
-            target_state=ExperimentState.PLANNING,
-            reason="ChangeEvent validated; invoking Gemini 3.5+ Evaluation Planner",
-            actor="orchestrator_service",
-        )
+        current_state = ExperimentState(experiment["state"])
+        if current_state == ExperimentState.RECEIVED:
+            experiment = self.ledger.update_experiment_state(
+                experiment_id=experiment_id,
+                target_state=ExperimentState.PLANNING,
+                reason="ChangeEvent validated; invoking Gemini 3.7 Evaluation Planner",
+                actor="orchestrator_service",
+            )
+            current_state = ExperimentState(experiment["state"])
+
+        if current_state not in {
+            ExperimentState.PLANNING,
+            ExperimentState.PLAN_APPROVED,
+            ExperimentState.DISPATCHING,
+        }:
+            return {
+                "status": "ALREADY_PROGRESSED",
+                "experiment_id": experiment_id,
+                "state": current_state.value,
+            }
 
         # 3. Fetch triggering ChangeEvent
         try:
@@ -75,70 +99,96 @@ class OrchestratorService:
             )
             return {"status": "FAILED", "error": f"ChangeEvent not found: {str(e)}"}
 
-        # 4. Run Gemini Evaluation Planner
-        proposed_plan_dict, usage = self.planner.run(
-            event_id=event_id,
-            correlation_id=correlation_id,
-            segment_id=segment_id,
-        )
-        if self.planner.last_invocation_record:
-            self.ledger.store_planner_invocation(experiment_id, self.planner.last_invocation_record)
+        usage = None
+        approved_plan: Optional[ExperimentPlan] = None
+        plan_hash: Optional[str] = None
+        if current_state == ExperimentState.PLANNING:
+            # 4. Run Gemini Evaluation Planner
+            proposed_plan_dict, usage = self.planner.run(
+                event_id=event_id,
+                correlation_id=correlation_id,
+                segment_id=segment_id,
+            )
+            if self.planner.last_invocation_record:
+                self.ledger.store_planner_invocation(experiment_id, self.planner.last_invocation_record)
 
-        if not proposed_plan_dict:
-            rejection_reason = "Planner failed to propose a structured experiment plan."
+            if not proposed_plan_dict:
+                rejection_reason = "Planner failed to propose a structured experiment plan."
+                self.ledger.update_experiment_state(
+                    experiment_id=experiment_id,
+                    target_state=ExperimentState.PLAN_REJECTED,
+                    reason=rejection_reason,
+                )
+                return {
+                    "status": "PLAN_REJECTED",
+                    "experiment_id": experiment_id,
+                    "reasons": [rejection_reason],
+                    "usage": usage.__dict__,
+                }
+
+            # 5. Evaluate deterministic Plan Policy
+            approval: PlanApprovalResult = self.validator.evaluate_plan(
+                raw_plan=proposed_plan_dict,
+                trigger_event=change_event_dict,
+            )
+
+            if not approval.approved:
+                logger.warning(f"[Orchestrator] Plan rejected for experiment '{experiment_id}': {approval.reasons}")
+                self.ledger.update_experiment_state(
+                    experiment_id=experiment_id,
+                    target_state=ExperimentState.PLAN_REJECTED,
+                    reason="; ".join(approval.reasons),
+                )
+                return {
+                    "status": "PLAN_REJECTED",
+                    "experiment_id": experiment_id,
+                    "reasons": approval.reasons,
+                    "usage": usage.__dict__,
+                }
+
+            approved_plan = approval.plan
+            plan_hash = approval.plan_hash
+            self.ledger.store_plan(approved_plan)
+
+            # 6. Transition state: PLANNING -> PLAN_APPROVED
             self.ledger.update_experiment_state(
                 experiment_id=experiment_id,
-                target_state=ExperimentState.PLAN_REJECTED,
-                reason=rejection_reason,
+                target_state=ExperimentState.PLAN_APPROVED,
+                reason=f"Plan '{approved_plan.plan_id}' approved. Hash: {plan_hash}",
             )
-            return {
-                "status": "PLAN_REJECTED",
-                "experiment_id": experiment_id,
-                "reasons": [rejection_reason],
-                "usage": usage.__dict__,
-            }
-
-        # 5. Evaluate deterministic Plan Policy
-        approval: PlanApprovalResult = self.validator.evaluate_plan(
-            raw_plan=proposed_plan_dict,
-            trigger_event=change_event_dict,
-        )
-
-        if not approval.approved:
-            logger.warning(f"[Orchestrator] Plan rejected for experiment '{experiment_id}': {approval.reasons}")
-            self.ledger.update_experiment_state(
-                experiment_id=experiment_id,
-                target_state=ExperimentState.PLAN_REJECTED,
-                reason="; ".join(approval.reasons),
-            )
-            return {
-                "status": "PLAN_REJECTED",
-                "experiment_id": experiment_id,
-                "reasons": approval.reasons,
-                "usage": usage.__dict__,
-            }
-
-        approved_plan: ExperimentPlan = approval.plan
-        self.ledger.store_plan(approved_plan)
-
-        # 6. Transition state: PLANNING -> PLAN_APPROVED
-        self.ledger.update_experiment_state(
-            experiment_id=experiment_id,
-            target_state=ExperimentState.PLAN_APPROVED,
-            reason=f"Plan '{approved_plan.plan_id}' approved. Hash: {approval.plan_hash}",
-        )
+            current_state = ExperimentState.PLAN_APPROVED
+        else:
+            stored_plan = self.ledger.get_plan_for_experiment(experiment_id)
+            if stored_plan is None:
+                raise RuntimeError(
+                    f"Experiment {experiment_id} is {current_state.value} without a durable plan checkpoint"
+                )
+            approved_plan = ExperimentPlan.model_validate(stored_plan)
+            plan_hash = compute_canonical_hash(approved_plan.model_dump(mode="json"))
 
         # 7. Generate Immutable Run Manifests for each matrix cell
-        manifests = self._generate_run_manifests(approved_plan)
-        self.ledger.store_run_manifests(manifests)
+        stored_manifests = self.ledger.list_run_manifests(experiment_id)
+        if stored_manifests:
+            manifests = [
+                RunManifest.model_validate({
+                    field_name: manifest[field_name]
+                    for field_name in RunManifest.model_fields
+                    if field_name in manifest
+                })
+                for manifest in stored_manifests
+            ]
+        else:
+            manifests = self._generate_run_manifests(approved_plan)
+            self.ledger.store_run_manifests(manifests)
         logger.info(f"[Orchestrator] Generated {len(manifests)} immutable run manifests for '{experiment_id}'")
 
         # 8. Transition state: PLAN_APPROVED -> DISPATCHING
-        self.ledger.update_experiment_state(
-            experiment_id=experiment_id,
-            target_state=ExperimentState.DISPATCHING,
-            reason=f"Dispatching {len(manifests)} runs to Cloud Tasks",
-        )
+        if current_state == ExperimentState.PLAN_APPROVED:
+            self.ledger.update_experiment_state(
+                experiment_id=experiment_id,
+                target_state=ExperimentState.DISPATCHING,
+                reason=f"Dispatching {len(manifests)} runs to Cloud Tasks",
+            )
 
         # 9. Dispatch Run Tasks via Cloud Tasks
         dispatched_task_names = self.dispatcher.dispatch_run_tasks(manifests)
@@ -147,10 +197,10 @@ class OrchestratorService:
             "status": "DISPATCHED",
             "experiment_id": experiment_id,
             "plan_id": approved_plan.plan_id,
-            "plan_hash": approval.plan_hash,
+            "plan_hash": plan_hash,
             "runs_count": len(manifests),
             "dispatched_task_names": dispatched_task_names,
-            "usage": usage.__dict__,
+            "usage": usage.__dict__ if usage else None,
         }
 
     def _generate_run_manifests(self, plan: ExperimentPlan) -> List[RunManifest]:

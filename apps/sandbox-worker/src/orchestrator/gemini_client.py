@@ -68,6 +68,28 @@ class GeminiOrchestratorClient:
     def is_live(self) -> bool:
         return self.client is not None
 
+    @staticmethod
+    def _build_generation_config(tools: List[Any], target_model: str):
+        """Build an SDK-native config from the repository's JSON declarations."""
+        from google.genai import types
+
+        function_declarations = [
+            declaration
+            if isinstance(declaration, types.FunctionDeclaration)
+            else types.FunctionDeclaration(**declaration)
+            for declaration in tools
+        ]
+        generation_kwargs: Dict[str, Any] = {
+            "tools": [types.Tool(function_declarations=function_declarations)],
+        }
+        if target_model.startswith("gemini-3.7"):
+            generation_kwargs["thinking_config"] = types.ThinkingConfig(
+                thinking_level=types.ThinkingLevel.MEDIUM
+            )
+        else:
+            generation_kwargs["temperature"] = 0.0
+        return types.GenerateContentConfig(**generation_kwargs)
+
     def call_with_tools(
         self,
         system_instruction: str,
@@ -97,19 +119,8 @@ class GeminiOrchestratorClient:
             )
 
         try:
-            from google.genai import types
-
-            generation_kwargs: Dict[str, Any] = {
-                "system_instruction": system_instruction,
-                "tools": tools,
-            }
-            if target_model.startswith("gemini-3.7"):
-                generation_kwargs["thinking_config"] = types.ThinkingConfig(
-                    thinking_level=types.ThinkingLevel.MEDIUM
-                )
-            else:
-                generation_kwargs["temperature"] = 0.0
-            config = types.GenerateContentConfig(**generation_kwargs)
+            config = self._build_generation_config(tools, target_model)
+            config.system_instruction = system_instruction
 
             response = self.client.models.generate_content(
                 model=target_model,

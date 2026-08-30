@@ -8,6 +8,8 @@ from orchestrator.tools import OrchestratorToolRegistry
 from orchestrator.planner import GeminiEvaluationPlanner
 from orchestrator.plan_policy import PlanPolicyValidator
 from orchestrator.service import OrchestratorService
+from orchestrator.gemini_client import GeminiOrchestratorClient
+from orchestrator.tools import GEMINI_TOOL_DECLARATIONS
 from contracts.models import ExperimentPlan
 from contracts.states import ExperimentState
 from ledger.firestore import InMemoryTransactionalLedger
@@ -62,6 +64,20 @@ def test_planner_multi_turn_simulation():
     assert usage.total_tokens > 0
 
 
+def test_gemini_tool_declarations_are_wrapped_for_sdk():
+    """Raw repository declarations must become one SDK Tool container."""
+    pytest.importorskip("google.genai")
+    config = GeminiOrchestratorClient._build_generation_config(
+        GEMINI_TOOL_DECLARATIONS,
+        "gemini-3.7-flash",
+    )
+
+    assert len(config.tools) == 1
+    assert len(config.tools[0].function_declarations) == len(GEMINI_TOOL_DECLARATIONS)
+    assert config.tools[0].function_declarations[0].name == "get_change_event"
+    assert str(config.thinking_config.thinking_level).endswith("MEDIUM")
+
+
 @pytest.mark.asyncio
 async def test_orchestrator_service_lifecycle():
     """Verify full end-to-end orchestration workflow from RECEIVED to DISPATCHED."""
@@ -84,3 +100,42 @@ async def test_orchestrator_service_lifecycle():
     assert exp is not None
     assert exp["state"] == ExperimentState.DISPATCHING.value
     assert exp["state_version"] >= 4 # RECEIVED -> PLANNING -> PLAN_APPROVED -> DISPATCHING
+
+    retry_result = await service.orchestrate(
+        event_id="evt_01J6G7R8Q9ABCDEFGHJKMNPQ01",
+        correlation_id="corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+    )
+    assert retry_result["status"] == "DISPATCHED"
+    assert retry_result["usage"] is None
+    assert retry_result["plan_hash"] == result["plan_hash"]
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_resumes_from_planning_checkpoint():
+    """A Cloud Tasks retry must resume after the RECEIVED -> PLANNING commit."""
+    ledger = InMemoryTransactionalLedger()
+    correlation_id = "corr_01J6G7R8Q9ABCDEFGHJKMNPQ02"
+    experiment_id = "exp_01J6G7R8Q9ABCDEFGHJKMNPQ02"
+    event_id = "evt_01J6G7R8Q9ABCDEFGHJKMNPQ01"
+    ledger.store_experiment(experiment_id, {
+        "event_id": event_id,
+        "correlation_id": correlation_id,
+        "state": ExperimentState.RECEIVED.value,
+    })
+    ledger.update_experiment_state(
+        experiment_id,
+        ExperimentState.PLANNING,
+        reason="simulate a retry after the durable planning transition",
+    )
+    service = OrchestratorService(
+        ledger=ledger,
+        dispatcher=CloudTasksDispatcher(),
+    )
+
+    result = await service.orchestrate(
+        event_id=event_id,
+        correlation_id=correlation_id,
+    )
+
+    assert result["status"] == "DISPATCHED"
+    assert ledger.get_experiment(experiment_id)["state"] == ExperimentState.DISPATCHING.value

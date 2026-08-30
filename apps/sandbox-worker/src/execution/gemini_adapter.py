@@ -115,6 +115,44 @@ class GeminiProviderAdapter(BaseProviderAdapter):
                 return
             raise
 
+    @staticmethod
+    def _build_generation_config(
+        system_instruction: str,
+        tools: List[Any],
+        native: Dict[str, Any],
+        model: str,
+    ):
+        """Build an SDK-native config from repository JSON declarations."""
+        from google.genai import types
+
+        function_declarations = [
+            declaration
+            if isinstance(declaration, types.FunctionDeclaration)
+            else types.FunctionDeclaration(**declaration)
+            for declaration in tools
+        ]
+        generation_kwargs: Dict[str, Any] = {
+            "system_instruction": system_instruction,
+            "max_output_tokens": native["max_output_tokens"],
+            "tools": [types.Tool(function_declarations=function_declarations)],
+        }
+        if model.startswith("gemini-3.7"):
+            generation_kwargs["thinking_config"] = types.ThinkingConfig(
+                thinking_level=getattr(
+                    types.ThinkingLevel,
+                    str(native["thinking_level"]).upper(),
+                )
+            )
+        else:
+            generation_kwargs.update(
+                temperature=native["temperature"],
+                top_p=native["top_p"],
+                thinking_config=types.ThinkingConfig(
+                    thinking_budget=native["thinking_budget_tokens"]
+                ),
+            )
+        return types.GenerateContentConfig(**generation_kwargs)
+
     def execute_turn(
         self,
         system_instruction: str,
@@ -133,32 +171,14 @@ class GeminiProviderAdapter(BaseProviderAdapter):
             return self._mock_turn_response(contents, model, latency_ms)
 
         try:
-            from google.genai import types
-
             gemini_tools = CODING_TOOLS_DECLARATIONS if tools is None else tools
             native = native_generation_parameters(config)
-            generation_kwargs: Dict[str, Any] = {
-                "system_instruction": system_instruction,
-                "max_output_tokens": native["max_output_tokens"],
-                "tools": gemini_tools,
-            }
-            if model.startswith("gemini-3.7"):
-                generation_kwargs["thinking_config"] = types.ThinkingConfig(
-                    thinking_level=getattr(
-                        types.ThinkingLevel,
-                        str(native["thinking_level"]).upper(),
-                    )
-                )
-            else:
-                generation_kwargs.update(
-                    temperature=native["temperature"],
-                    top_p=native["top_p"],
-                    thinking_config=types.ThinkingConfig(
-                        thinking_budget=native["thinking_budget_tokens"]
-                    ),
-                )
-
-            gen_config = types.GenerateContentConfig(**generation_kwargs)
+            gen_config = self._build_generation_config(
+                system_instruction=system_instruction,
+                tools=gemini_tools,
+                native=native,
+                model=model,
+            )
 
             response = self.client.models.generate_content(
                 model=model,
@@ -190,6 +210,11 @@ class GeminiProviderAdapter(BaseProviderAdapter):
             return ProviderTurnResult(
                 text=response.text if hasattr(response, "text") else None,
                 tool_calls=tool_calls,
+                response_content=(
+                    response.candidates[0].content
+                    if getattr(response, "candidates", None)
+                    else None
+                ),
                 usage=ProviderUsage(
                     prompt_tokens=p_tokens,
                     completion_tokens=c_tokens,

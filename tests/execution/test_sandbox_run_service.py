@@ -5,6 +5,7 @@ Sandbox Run Execution & Workspace Security Tests (IMP-04).
 import pytest
 from pathlib import Path
 from execution.run_service import RunExecutionService
+from execution.gemini_adapter import CODING_TOOLS_DECLARATIONS, GeminiProviderAdapter
 from execution.provider_adapter import BaseProviderAdapter, ProviderTurnResult, ProviderUsage
 from evaluation.fixture_loader import TaskFixtureLoader
 from contracts.models import RunManifest
@@ -112,3 +113,59 @@ def test_fixture_loader_checksum_verification(tmp_path):
     assert "parser.py" in unpacked
     assert "test_parser.py" in unpacked
     assert (tmp_path / "parser.py").exists()
+
+
+def test_execution_tool_declarations_are_wrapped_for_sdk():
+    """Raw execution declarations must become one SDK Tool container."""
+    pytest.importorskip("google.genai")
+    config = GeminiProviderAdapter._build_generation_config(
+        system_instruction="Fix the task.",
+        tools=CODING_TOOLS_DECLARATIONS,
+        native={"max_output_tokens": 4096, "thinking_level": "low"},
+        model="gemini-3.7-flash",
+    )
+
+    assert len(config.tools) == 1
+    assert len(config.tools[0].function_declarations) == len(CODING_TOOLS_DECLARATIONS)
+    assert config.tools[0].function_declarations[0].name == "view_file"
+    assert str(config.thinking_config.thinking_level).endswith("LOW")
+
+
+@pytest.mark.asyncio
+async def test_run_service_replays_signed_content_and_batches_tool_responses(sample_run_manifest):
+    """Gemini signed content and parallel responses must retain SDK turn shape."""
+    signed_content = object()
+
+    class RecordingProvider(BaseProviderAdapter):
+        def __init__(self):
+            self.calls = []
+
+        def execute_turn(self, system_instruction, contents, tools=None, config=None):
+            self.calls.append(list(contents))
+            if len(self.calls) == 1:
+                return ProviderTurnResult(
+                    tool_calls=[
+                        {"name": "view_file", "args": {"path": "parser.py"}},
+                        {"name": "view_file", "args": {"path": "test_parser.py"}},
+                    ],
+                    response_content=signed_content,
+                    usage=ProviderUsage(total_tokens=100),
+                )
+            return ProviderTurnResult(text="done", usage=ProviderUsage(total_tokens=50))
+
+    provider = RecordingProvider()
+    service = RunExecutionService(provider=provider)
+    await service.execute_run(
+        manifest=sample_run_manifest,
+        worker_id="test_worker_signed_history",
+    )
+
+    second_turn = provider.calls[1]
+    assert second_turn[1] is signed_content
+    assert second_turn[2]["role"] == "user"
+    responses = second_turn[2]["parts"]
+    assert [part["function_response"]["name"] for part in responses] == [
+        "view_file",
+        "view_file",
+    ]
+    assert all(isinstance(part["function_response"]["response"], dict) for part in responses)

@@ -168,6 +168,26 @@ class RunExecutionService:
                     break
 
                 # Execute tool calls in sandbox with path containment checks
+                if turn_res.response_content is not None:
+                    # Gemini 3.7 signs function-call parts. Preserve the exact
+                    # SDK content object so opaque thought signatures survive.
+                    messages.append(turn_res.response_content)
+                else:
+                    # Provider-neutral fallback for adapters and test doubles
+                    # that do not expose a native signed response object.
+                    messages.append({
+                        "role": "model",
+                        "parts": [
+                            {
+                                "function_call": {
+                                    "name": tc["name"],
+                                    "args": tc.get("args", {}),
+                                }
+                            }
+                            for tc in turn_res.tool_calls
+                        ],
+                    })
+                function_response_parts: List[Dict[str, Any]] = []
                 for tc in turn_res.tool_calls:
                     name = tc["name"]
                     args = tc.get("args", {})
@@ -202,22 +222,22 @@ class RunExecutionService:
                         security_details = tool_output
                         break
 
-                    messages.append({
-                        "role": "model",
-                        "parts": [{"function_call": {"name": name, "args": args}}]
-                    })
-                    messages.append({
-                        "role": "user",
-                        "parts": [{
-                            "function_response": {
-                                "name": name,
-                                "response": {"output": tool_output},
-                            }
-                        }]
+                    function_response_parts.append({
+                        "function_response": {
+                            "name": name,
+                            # FunctionResponse.response must always be an object.
+                            "response": {"result": tool_output},
+                        }
                     })
 
                 if security_breach:
                     break
+                # Match the SDK's parallel function-calling conversation shape:
+                # one model turn followed by one user turn with all responses.
+                messages.append({
+                    "role": "user",
+                    "parts": function_response_parts,
+                })
 
             if provider_error or budget_exceeded or run_timed_out or security_breach:
                 oracle_res = {

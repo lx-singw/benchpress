@@ -22,6 +22,7 @@ class ProviderUsage:
 class ProviderTurnResult:
     text: Optional[str] = None
     tool_calls: List[Dict[str, Any]] = field(default_factory=list)
+    response_content: Optional[Any] = None
     usage: ProviderUsage = field(default_factory=ProviderUsage)
     finish_reason: str = "STOP"
     response_model: Optional[str] = None

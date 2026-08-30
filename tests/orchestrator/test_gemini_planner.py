@@ -99,8 +99,8 @@ def test_live_planner_replays_signed_model_content_verbatim():
             if len(self.calls) == 1:
                 return GeminiCallResult(
                     function_calls=[{
-                        "name": "get_change_event",
-                        "args": {"event_id": "evt_01J6G7R8Q9ABCDEFGHJKMNPQ01"},
+                        "name": "list_candidate_tasks",
+                        "args": {"cohort_version": "judged_task_cohort.v1"},
                     }],
                     usage=GeminiUsageMetadata(model_id="gemini-3.7-flash"),
                     raw_response=SimpleNamespace(
@@ -124,7 +124,9 @@ def test_live_planner_replays_signed_model_content_verbatim():
     second_turn_contents = client.calls[1]["contents"]
     assert second_turn_contents[1] is signed_content
     assert second_turn_contents[2]["role"] == "user"
-    assert second_turn_contents[2]["parts"][0]["function_response"]["name"] == "get_change_event"
+    function_response = second_turn_contents[2]["parts"][0]["function_response"]
+    assert function_response["name"] == "list_candidate_tasks"
+    assert len(function_response["response"]["result"]) == 4
 
 
 @pytest.mark.asyncio

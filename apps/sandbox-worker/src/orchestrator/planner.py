@@ -231,7 +231,9 @@ class GeminiEvaluationPlanner:
                 function_response_parts.append({
                     "function_response": {
                         "name": name,
-                        "response": tool_result,
+                        # FunctionResponse.response is always an object in the
+                        # SDK contract, including when a tool returns a list.
+                        "response": {"result": tool_result},
                     }
                 })
 

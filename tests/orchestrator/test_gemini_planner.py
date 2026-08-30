@@ -3,12 +3,17 @@ Gemini Evaluation Planner & Orchestration Workflow Tests (IMP-02).
 """
 
 import os
+from types import SimpleNamespace
 import pytest
 from orchestrator.tools import OrchestratorToolRegistry
 from orchestrator.planner import GeminiEvaluationPlanner
 from orchestrator.plan_policy import PlanPolicyValidator
 from orchestrator.service import OrchestratorService
-from orchestrator.gemini_client import GeminiOrchestratorClient
+from orchestrator.gemini_client import (
+    GeminiCallResult,
+    GeminiOrchestratorClient,
+    GeminiUsageMetadata,
+)
 from orchestrator.tools import GEMINI_TOOL_DECLARATIONS
 from contracts.models import ExperimentPlan
 from contracts.states import ExperimentState
@@ -76,6 +81,50 @@ def test_gemini_tool_declarations_are_wrapped_for_sdk():
     assert len(config.tools[0].function_declarations) == len(GEMINI_TOOL_DECLARATIONS)
     assert config.tools[0].function_declarations[0].name == "get_change_event"
     assert str(config.thinking_config.thinking_level).endswith("MEDIUM")
+
+
+def test_live_planner_replays_signed_model_content_verbatim():
+    """Gemini 3.7 thought signatures must survive multi-turn tool calls."""
+    signed_content = object()
+
+    class RecordingClient:
+        def __init__(self):
+            self.calls = []
+
+        def is_live(self):
+            return True
+
+        def call_with_tools(self, **kwargs):
+            self.calls.append(kwargs)
+            if len(self.calls) == 1:
+                return GeminiCallResult(
+                    function_calls=[{
+                        "name": "get_change_event",
+                        "args": {"event_id": "evt_01J6G7R8Q9ABCDEFGHJKMNPQ01"},
+                    }],
+                    usage=GeminiUsageMetadata(model_id="gemini-3.7-flash"),
+                    raw_response=SimpleNamespace(
+                        candidates=[SimpleNamespace(content=signed_content)]
+                    ),
+                )
+            return GeminiCallResult(
+                text="done",
+                usage=GeminiUsageMetadata(model_id="gemini-3.7-flash"),
+                raw_response=SimpleNamespace(candidates=[]),
+            )
+
+    client = RecordingClient()
+    planner = GeminiEvaluationPlanner(gemini_client=client)
+    plan, _ = planner.run(
+        event_id="evt_01J6G7R8Q9ABCDEFGHJKMNPQ01",
+        correlation_id="corr_01J6G7R8Q9ABCDEFGHJKMNPQ02",
+    )
+
+    assert plan is None
+    second_turn_contents = client.calls[1]["contents"]
+    assert second_turn_contents[1] is signed_content
+    assert second_turn_contents[2]["role"] == "user"
+    assert second_turn_contents[2]["parts"][0]["function_response"]["name"] == "get_change_event"
 
 
 @pytest.mark.asyncio

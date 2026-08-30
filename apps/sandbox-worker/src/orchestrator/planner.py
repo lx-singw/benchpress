@@ -193,6 +193,18 @@ class GeminiEvaluationPlanner:
                 # Terminal model response without function calls
                 break
 
+            # Gemini 3.7 signs function-call parts. Preserve the exact SDK
+            # content object so its opaque thought signatures survive into the
+            # next request; reconstructing the calls from name/args is invalid.
+            if (
+                result.raw_response is None
+                or not result.raw_response.candidates
+                or result.raw_response.candidates[0].content is None
+            ):
+                raise RuntimeError("Gemini function-call response omitted signed candidate content")
+            contents.append(result.raw_response.candidates[0].content)
+            function_response_parts: List[Dict[str, Any]] = []
+
             # Execute tool calls
             for fc in result.function_calls:
                 name = fc["name"]
@@ -216,20 +228,19 @@ class GeminiEvaluationPlanner:
                     }
                     return proposed_plan, accumulated_usage
 
-                # Append tool result to conversation history
-                contents.append({
-                    "role": "model",
-                    "parts": [{"function_call": {"name": name, "args": args}}]
+                function_response_parts.append({
+                    "function_response": {
+                        "name": name,
+                        "response": tool_result,
+                    }
                 })
-                contents.append({
-                    "role": "user",
-                    "parts": [{
-                        "function_response": {
-                            "name": name,
-                            "response": tool_result,
-                        }
-                    }]
-                })
+
+            # Return all parallel tool results in one user turn, matching the
+            # google-genai SDK's automatic function-calling conversation shape.
+            contents.append({
+                "role": "user",
+                "parts": function_response_parts,
+            })
 
         self.last_invocation_record = {
             "schema_version": "1.0.0",

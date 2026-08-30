@@ -143,9 +143,22 @@ def check_bigquery(report: dict, *, credentials=None) -> None:
     }
 
 
+def model_probe_generation_config(model: str):
+    """Return a minimal probe config with enough room for thinking plus READY."""
+    from google.genai import types
+
+    generation_config = {"max_output_tokens": 64}
+    if model.startswith("gemini-3.7"):
+        generation_config["thinking_config"] = types.ThinkingConfig(
+            thinking_level=types.ThinkingLevel.LOW
+        )
+    else:
+        generation_config["temperature"] = 0
+    return types.GenerateContentConfig(**generation_config)
+
+
 def check_planner_model(report: dict, *, credentials=None) -> None:
     from google import genai
-    from google.genai import types
 
     if settings.gemini_api_key:
         client = genai.Client(api_key=settings.gemini_api_key)
@@ -160,17 +173,10 @@ def check_planner_model(report: dict, *, credentials=None) -> None:
         api_surface = "vertex_ai"
 
     started = time.perf_counter()
-    generation_config = {"max_output_tokens": 8}
-    if settings.planner_model.startswith("gemini-3.7"):
-        generation_config["thinking_config"] = types.ThinkingConfig(
-            thinking_level=types.ThinkingLevel.LOW
-        )
-    else:
-        generation_config["temperature"] = 0
     response = client.models.generate_content(
         model=settings.planner_model,
         contents="Return exactly the single word READY.",
-        config=types.GenerateContentConfig(**generation_config),
+        config=model_probe_generation_config(settings.planner_model),
     )
     latency_ms = round((time.perf_counter() - started) * 1000)
     usage = getattr(response, "usage_metadata", None)

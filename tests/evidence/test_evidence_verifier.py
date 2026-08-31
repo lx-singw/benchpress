@@ -2,7 +2,12 @@ import hashlib
 import json
 import subprocess
 import sys
+from datetime import timedelta
 from pathlib import Path
+
+import pytest
+
+from scripts.export_evidence_package import ExportError, duration_json
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,3 +52,23 @@ def test_truth_boundary_scan_passes_for_quarantined_root_evidence():
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_cloud_tasks_duration_supports_proto_plus_timedelta():
+    assert duration_json(timedelta(seconds=12, microseconds=345_678)) == {
+        "seconds": 12,
+        "nanos": 345_678_000,
+    }
+
+
+def test_cloud_tasks_duration_supports_protobuf_shape():
+    class Duration:
+        seconds = 7
+        nanos = 123
+
+    assert duration_json(Duration()) == {"seconds": 7, "nanos": 123}
+
+
+def test_cloud_tasks_duration_rejects_unknown_shape():
+    with pytest.raises(ExportError, match="Unsupported Cloud Tasks duration"):
+        duration_json(object())

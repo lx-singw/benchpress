@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -207,6 +207,23 @@ def deterministic_task_id(kind: str, logical_id: str) -> str:
     return f"{kind}-{digest}"
 
 
+def duration_json(value: Any) -> dict[str, int]:
+    """Normalize protobuf and proto-plus duration representations."""
+    if isinstance(value, timedelta):
+        total_microseconds = (
+            (value.days * 86_400 + value.seconds) * 1_000_000
+            + value.microseconds
+        )
+        seconds, remaining_microseconds = divmod(total_microseconds, 1_000_000)
+        return {
+            "seconds": seconds,
+            "nanos": remaining_microseconds * 1_000,
+        }
+    if hasattr(value, "seconds") and hasattr(value, "nanos"):
+        return {"seconds": int(value.seconds), "nanos": int(value.nanos)}
+    raise ExportError(f"Unsupported Cloud Tasks duration value: {type(value).__name__}")
+
+
 def export_tasks(
     args: argparse.Namespace,
     root: Path,
@@ -230,18 +247,9 @@ def export_tasks(
         },
         "retry_config": {
             "max_attempts": queue.retry_config.max_attempts,
-            "max_retry_duration": {
-                "seconds": queue.retry_config.max_retry_duration.seconds,
-                "nanos": queue.retry_config.max_retry_duration.nanos,
-            },
-            "min_backoff": {
-                "seconds": queue.retry_config.min_backoff.seconds,
-                "nanos": queue.retry_config.min_backoff.nanos,
-            },
-            "max_backoff": {
-                "seconds": queue.retry_config.max_backoff.seconds,
-                "nanos": queue.retry_config.max_backoff.nanos,
-            },
+            "max_retry_duration": duration_json(queue.retry_config.max_retry_duration),
+            "min_backoff": duration_json(queue.retry_config.min_backoff),
+            "max_backoff": duration_json(queue.retry_config.max_backoff),
             "max_doublings": queue.retry_config.max_doublings,
         },
     }

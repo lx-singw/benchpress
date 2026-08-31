@@ -224,6 +224,15 @@ def duration_json(value: Any) -> dict[str, int]:
     raise ExportError(f"Unsupported Cloud Tasks duration value: {type(value).__name__}")
 
 
+def enum_name(value: Any) -> str:
+    """Return a stable semantic enum name across protobuf runtimes."""
+    name = getattr(value, "name", None)
+    if name:
+        return str(name)
+    rendered = str(value)
+    return rendered.rsplit(".", 1)[-1]
+
+
 def export_tasks(
     args: argparse.Namespace,
     root: Path,
@@ -240,7 +249,7 @@ def export_tasks(
     queue = tasks_client.get_queue(request={"name": queue_name})
     queue_metadata = {
         "name": queue.name,
-        "state": str(queue.state),
+        "state": enum_name(queue.state),
         "rate_limits": {
             "max_dispatches_per_second": queue.rate_limits.max_dispatches_per_second,
             "max_concurrent_dispatches": queue.rate_limits.max_concurrent_dispatches,

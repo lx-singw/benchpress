@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.export_evidence_package import ExportError, duration_json
+from scripts.export_evidence_package import ExportError, duration_json, enum_name
 from scripts.verify_evidence_package import VerificationFailure, contract_projection
 
 
@@ -73,6 +73,16 @@ def test_cloud_tasks_duration_supports_protobuf_shape():
 def test_cloud_tasks_duration_rejects_unknown_shape():
     with pytest.raises(ExportError, match="Unsupported Cloud Tasks duration"):
         duration_json(object())
+
+
+def test_cloud_tasks_enum_uses_semantic_name():
+    from enum import IntEnum
+
+    class State(IntEnum):
+        RUNNING = 1
+
+    assert str(State.RUNNING) == "1"
+    assert enum_name(State.RUNNING) == "RUNNING"
 
 
 def test_run_manifest_contract_projection_retains_lifecycle_evidence():

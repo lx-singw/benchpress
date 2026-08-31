@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from scripts.export_evidence_package import ExportError, duration_json
+from scripts.verify_evidence_package import VerificationFailure, contract_projection
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -72,3 +73,23 @@ def test_cloud_tasks_duration_supports_protobuf_shape():
 def test_cloud_tasks_duration_rejects_unknown_shape():
     with pytest.raises(ExportError, match="Unsupported Cloud Tasks duration"):
         duration_json(object())
+
+
+def test_run_manifest_contract_projection_retains_lifecycle_evidence():
+    document = {
+        "schema_version": "1.0.0",
+        "logical_run_key": "run_0123456789abcdef",
+        "run_state": "SUCCEEDED",
+        "state_version": 3,
+        "invocation_fence": 1,
+        "terminal_result_key": "run_0123456789abcdef",
+    }
+    assert contract_projection("run_manifests", document) == {
+        "schema_version": "1.0.0",
+        "logical_run_key": "run_0123456789abcdef",
+    }
+
+
+def test_run_manifest_contract_projection_rejects_unknown_fields():
+    with pytest.raises(VerificationFailure, match="Unexpected persistence fields"):
+        contract_projection("run_manifests", {"schema_version": "1.0.0", "unexpected": True})

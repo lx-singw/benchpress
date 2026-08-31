@@ -37,7 +37,12 @@ from contracts.models import (
     RunResult,
     TaskFingerprint,
 )
-from contracts.states import ExperimentState, PublicDecision, validate_experiment_transition
+from contracts.states import (
+    ExperimentState,
+    LogicalRunState,
+    PublicDecision,
+    validate_experiment_transition,
+)
 
 
 SCHEMA_BY_CATEGORY = {
@@ -65,6 +70,14 @@ MODEL_BY_CATEGORY = {
     "canary_results": CanaryResult,
     "decision_receipts": DecisionReceipt,
     "replay_events": ReplayEvent,
+}
+PERSISTENCE_FIELDS_BY_CATEGORY = {
+    "run_manifests": {
+        "invocation_fence",
+        "run_state",
+        "state_version",
+        "terminal_result_key",
+    },
 }
 
 
@@ -125,6 +138,35 @@ def validate_schema(document: Any, schema_name: str) -> None:
     jsonschema.validate(document, schema, format_checker=jsonschema.FormatChecker())
 
 
+def contract_projection(category: str, document: dict[str, Any]) -> dict[str, Any]:
+    """Project an authoritative record onto its immutable contract payload."""
+    model = MODEL_BY_CATEGORY[category]
+    contract_fields = set(model.model_fields)
+    persistence_fields = PERSISTENCE_FIELDS_BY_CATEGORY.get(category, set())
+    unknown = set(document) - contract_fields - persistence_fields
+    require(not unknown, f"Unexpected persistence fields in {category}: {sorted(unknown)}")
+    return {key: value for key, value in document.items() if key in contract_fields}
+
+
+def verify_run_manifest_lifecycle(document: dict[str, Any]) -> None:
+    required = PERSISTENCE_FIELDS_BY_CATEGORY["run_manifests"]
+    missing = required - set(document)
+    require(not missing, f"Run manifest lifecycle fields are missing: {sorted(missing)}")
+    require(
+        isinstance(document["state_version"], int) and document["state_version"] >= 1,
+        "Run manifest state_version is invalid",
+    )
+    require(
+        isinstance(document["invocation_fence"], int) and document["invocation_fence"] >= 0,
+        "Run manifest invocation_fence is invalid",
+    )
+    LogicalRunState(document["run_state"])
+    require(
+        document["terminal_result_key"] == document["logical_run_key"],
+        "Terminal run manifest points to another result",
+    )
+
+
 def load_firestore(manifest: dict[str, Any], root: Path) -> dict[str, list[dict[str, Any]]]:
     records: dict[str, list[dict[str, Any]]] = {}
     for category, files in manifest["firestore"].items():
@@ -133,8 +175,11 @@ def load_firestore(manifest: dict[str, Any], root: Path) -> dict[str, list[dict[
             text = json.dumps(document, sort_keys=True)
             require("DEMO_FIXTURE" not in text, f"Fixture contamination in {category}")
             if category in SCHEMA_BY_CATEGORY:
-                validate_schema(document, SCHEMA_BY_CATEGORY[category])
-                MODEL_BY_CATEGORY[category].model_validate(document)
+                projection = contract_projection(category, document)
+                validate_schema(projection, SCHEMA_BY_CATEGORY[category])
+                MODEL_BY_CATEGORY[category].model_validate(projection)
+                if category == "run_manifests":
+                    verify_run_manifest_lifecycle(document)
         records[category] = documents
     return records
 
